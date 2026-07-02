@@ -1,0 +1,167 @@
+I want to build a startup project called "PakeUp – Beauty in One Tap".
+
+Tech Stack:
+- Flutter for all applications.
+- 2 Android apps:
+  1. Customer App
+  2. Salon Partner App
+- 1 Windows Desktop App:
+  3. Admin Panel
+
+Backend:
+- I do NOT want to create a custom backend API initially.
+- Use Supabase as Backend-as-a-Service.
+- Use Supabase for:
+  - PostgreSQL Database
+  - Authentication (Phone OTP, Google Sign-In)
+  - Auto-generated REST APIs
+  - Realtime features
+  - User management
+
+Storage:
+- Use Cloudflare R2 for:
+  - Reels videos
+  - Salon images
+  - User profile photos
+  - AI-generated images
+
+Notifications:
+- Use Firebase Cloud Messaging (FCM).
+
+App Features:
+
+CUSTOMER APP:
+1. User Registration/Login
+   - Phone OTP
+   - Google Login
+
+2. Browse Salons
+   - Nearby salons
+   - Search and filters
+   - Categories
+
+3. Instagram-like Reels Feed
+   - Salon videos
+   - Like, save, share
+   - Book directly from reels
+
+4. Salon Booking
+   - In-salon booking
+   - Home visit booking
+   - Date and time selection
+   - Online payment
+
+5. Home Visit
+   - Distance-based pricing
+   - Service fee + travel fee
+
+6. AI Beauty Assistant
+   - Upload selfie
+   - Face analysis
+   - Hairstyle recommendations
+   - Makeup recommendations
+   - Product recommendations
+   - Fashion and color suggestions
+
+7. AI Monetization
+   - 5 free analyses per month
+   - Paid plans:
+     - 10 analyses = ₹49
+     - 25 analyses = ₹99
+     - Unlimited = ₹199/month
+   - Watch ads to earn extra analyses.
+
+8. Affiliate Products
+   - Beauty products
+   - Makeup products
+   - Hair products
+   - External purchase links.
+
+9. User Reviews and Ratings.
+
+10. Notifications
+   - Booking updates
+   - Offers
+   - Promotions.
+
+11. Wallet, Coupons, Referral System.
+
+---------------------------------------------------
+
+SALON PARTNER APP:
+
+1. Salon Registration and KYC.
+2. Manage Profile.
+3. Manage Services and Pricing.
+4. Upload Photos and Videos.
+5. Manage Bookings.
+6. Accept or Reject Appointments.
+7. Calendar and Schedule.
+8. Manage Home Visits.
+9. Earnings Dashboard.
+10. Customer Reviews.
+11. Analytics.
+12. Subscription Plans.
+13. Promotional Campaigns.
+14. Push Notifications.
+
+---------------------------------------------------
+
+ADMIN WINDOWS APP:
+
+1. Dashboard.
+2. User Management.
+3. Salon Management.
+4. Booking Management.
+5. Payment Management.
+6. Commission Management.
+7. Coupon Management.
+8. AI Usage Monitoring.
+9. Advertisement Management.
+10. Affiliate Management.
+11. Content Moderation.
+12. Reports and Analytics.
+13. Push Notification System.
+14. Revenue Dashboard.
+15. System Settings.
+
+---------------------------------------------------
+
+Business Rules:
+
+- Platform commission:
+  10% on every booking.
+- Home visit:
+  10% commission on total amount.
+- Bridal bookings:
+  10% commission.
+- Salon subscription plans:
+  Free
+  Verified
+  Pro
+  Premium
+
+Revenue Streams:
+1. Booking commission.
+2. Salon subscriptions.
+3. Featured listings.
+4. Promotional campaigns.
+5. AI premium plans.
+6. Affiliate commissions.
+7. Google AdMob.
+8. Brand sponsorships.
+
+Security:
+- Phone verification.
+- Device limitation.
+- Anti-spam protection.
+- Face analysis abuse prevention.
+
+Please generate:
+1. Complete project architecture.
+2. Database schema.
+3. Folder structure.
+4. Feature modules.
+5. State management recommendation.
+6. Scalable Flutter project structure.
+7. Development roadmap for MVP and production.
