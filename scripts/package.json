@@ -1,0 +1,9 @@
+{
+  "name": "pakeup-db-scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "pg": "^8.14.1"
+  }
+}
