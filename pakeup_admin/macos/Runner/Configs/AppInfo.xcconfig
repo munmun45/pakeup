@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = pakeup_admin
+PRODUCT_NAME = PakeUp Admin
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.pakeup.admin.pakeupAdmin
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.pakeup.admin. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 PakeUp. All rights reserved.

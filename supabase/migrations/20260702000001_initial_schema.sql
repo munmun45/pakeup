@@ -30,6 +30,7 @@ CREATE TYPE wallet_source AS ENUM (
 -- ============================================================
 -- PROFILES (extends auth.users)
 -- ============================================================
+
 CREATE TABLE profiles (
   id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role            user_role NOT NULL DEFAULT 'customer',

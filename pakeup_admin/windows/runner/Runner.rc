@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.pakeup.admin" "\0"
-            VALUE "FileDescription", "pakeup_admin" "\0"
+            VALUE "FileDescription", "PakeUp Admin" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "pakeup_admin" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.pakeup.admin. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 PakeUp. All rights reserved." "\0"
             VALUE "OriginalFilename", "pakeup_admin.exe" "\0"
-            VALUE "ProductName", "pakeup_admin" "\0"
+            VALUE "ProductName", "PakeUp Admin" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

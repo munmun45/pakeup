@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/app_messenger.dart';
+import 'core/widgets/smooth_scroll_behavior.dart';
 import 'features/auth/providers/auth_provider.dart';
 
 class PakeUpAdminApp extends ConsumerWidget {
@@ -18,6 +20,7 @@ class PakeUpAdminApp extends ConsumerWidget {
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        scrollBehavior: const SmoothScrollBehavior(),
         home: Scaffold(
           body: Center(
             child: ConstrainedBox(
@@ -70,6 +73,7 @@ class PakeUpAdminApp extends ConsumerWidget {
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        scrollBehavior: const SmoothScrollBehavior(),
         home: const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
@@ -80,6 +84,8 @@ class PakeUpAdminApp extends ConsumerWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      scrollBehavior: const SmoothScrollBehavior(),
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       routerConfig: router,
     );
   }

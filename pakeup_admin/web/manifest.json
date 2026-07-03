@@ -1,6 +1,6 @@
 {
-    "name": "pakeup_admin",
-    "short_name": "pakeup_admin",
+    "name": "PakeUp Admin",
+    "short_name": "PakeUp Admin",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
