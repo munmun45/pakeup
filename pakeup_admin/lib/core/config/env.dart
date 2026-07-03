@@ -19,4 +19,13 @@ class Env {
     }
     return key;
   }
+
+  /// Google Maps JavaScript + Places API key (from `.env`).
+  static String? get googleMapsApiKey {
+    final key = dotenv.env['GOOGLE_MAPS_API_KEY'];
+    if (key == null || key.isEmpty || key.contains('paste-your')) {
+      return null;
+    }
+    return key;
+  }
 }

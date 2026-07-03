@@ -47,6 +47,17 @@ class AdminPages {
       pageKeys: ['dashboard'],
     ),
     AdminMenuGroup(
+      id: 'partners',
+      label: 'Partners',
+      pageKeys: [
+        'add_partners',
+        'partner_categories',
+        'partner_kyc',
+        'partner_manage_accounts',
+        'partner_services',
+      ],
+    ),
+    AdminMenuGroup(
       id: 'operations',
       label: 'Operations',
       pageKeys: [
@@ -129,6 +140,41 @@ class AdminPages {
       icon: Icons.percent_rounded,
       route: '/commissions',
       group: 'operations',
+    ),
+    AdminPageDef(
+      key: 'add_partners',
+      label: 'Add Partners',
+      icon: Icons.storefront_rounded,
+      route: '/partners/add',
+      group: 'partners',
+    ),
+    AdminPageDef(
+      key: 'partner_categories',
+      label: 'Partner Categories',
+      icon: Icons.category_rounded,
+      route: '/partners/categories',
+      group: 'partners',
+    ),
+    AdminPageDef(
+      key: 'partner_kyc',
+      label: 'KYC',
+      icon: Icons.verified_user_rounded,
+      route: '/partners/kyc',
+      group: 'partners',
+    ),
+    AdminPageDef(
+      key: 'partner_manage_accounts',
+      label: 'Manage Accounts',
+      icon: Icons.account_balance_wallet_rounded,
+      route: '/partners/accounts',
+      group: 'partners',
+    ),
+    AdminPageDef(
+      key: 'partner_services',
+      label: 'Partner Services',
+      icon: Icons.spa_rounded,
+      route: '/partners/services',
+      group: 'partners',
     ),
     AdminPageDef(
       key: 'coupons',

@@ -59,6 +59,11 @@ class _HeaderSearchBarState extends ConsumerState<HeaderSearchBar> {
       'users' => 'Search users...',
       'salons' => 'Search salons...',
       'bookings' => 'Search bookings...',
+      'add_partners' => 'Search partners...',
+      'partner_categories' => 'Search categories...',
+      'partner_kyc' => 'Search KYC requests...',
+      'partner_manage_accounts' => 'Search partner accounts...',
+      'partner_services' => 'Search services...',
       _ => 'Search ${AdminPages.byKey(pageKey)?.label ?? ''}...',
     };
   }
