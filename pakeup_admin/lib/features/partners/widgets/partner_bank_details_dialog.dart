@@ -10,6 +10,7 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
+import '../utils/kyc_document_limits.dart';
 import 'kyc_document_upload_tile.dart';
 import 'partner_form_field.dart';
 
@@ -96,10 +97,27 @@ class _PartnerBankDetailsDialogState
     final file = result.files.first;
     if (file.path == null) return;
 
+    const type = KycDocType.passbook;
+    final size = file.size;
+    if (size > 0) {
+      final error = KycDocumentLimits.validateBytes(size, type);
+      if (error != null) {
+        setState(() => _passbook.errorMessage = error);
+        return;
+      }
+    } else {
+      final error = await KycDocumentLimits.validatePath(file.path!, type);
+      if (error != null) {
+        setState(() => _passbook.errorMessage = error);
+        return;
+      }
+    }
+
     setState(() {
       _passbook
         ..localPath = file.path
-        ..localName = file.name;
+        ..localName = file.name
+        ..errorMessage = null;
     });
   }
 
@@ -122,12 +140,18 @@ class _PartnerBankDetailsDialogState
     if (!_formKey.currentState!.validate()) return;
 
     if (!_hasPassbook) {
-      AppSnackBar.error(context, 'Upload bank passbook or cancelled cheque');
+      setState(() {
+        _passbook.errorMessage =
+            'Please upload bank passbook or cancelled cheque';
+      });
       return;
     }
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     setState(() => _submitting = true);
 
@@ -164,11 +188,13 @@ class _PartnerBankDetailsDialogState
       );
 
       if (mounted) {
-        AppSnackBar.success(context, 'Account details saved');
+        AppSnackBar.success(context, 'Account details saved successfully');
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) AppSnackBar.error(context, e.toString());
+      if (mounted) {
+        AppSnackBar.actionFailed(context, 'save account details', e);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -177,163 +203,418 @@ class _PartnerBankDetailsDialogState
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final initial = widget.partner.businessName.isNotEmpty
+        ? widget.partner.businessName[0].toUpperCase()
+        : 'P';
 
     return Dialog(
-      backgroundColor: AppColors.surface,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 640,
-          maxHeight: size.height * 0.88,
+          maxWidth: 620,
+          maxHeight: size.height * 0.92,
         ),
-        child: Column(
-          children: [
-            _BankHeader(
-              partnerName: widget.partner.businessName,
-              onClose: _submitting ? null : () => Navigator.pop(context),
-            ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Container(
-                      color: const Color(0xFFF3F4F6),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                        child: Form(
-                          key: _formKey,
-                          child: PartnerFormSection(
-                            title: 'Bank Account Details',
-                            icon: Icons.account_balance_outlined,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Material(
+            color: AppColors.surface,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 8, 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.14),
+                        AppColors.surface,
+                      ],
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.border.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Account Details',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              widget.partner.businessName,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_hasPassbook)
+                        Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              PartnerFormField(
-                                label: 'Account Holder Name',
-                                icon: Icons.person_outline,
-                                controller: _holderCtrl,
-                                required: true,
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: 13,
+                                color: AppColors.success,
                               ),
-                              PartnerFormRow(
-                                children: [
-                                  PartnerFormField(
-                                    label: 'Bank Name',
-                                    icon: Icons.account_balance,
-                                    controller: _bankCtrl,
-                                    required: true,
-                                  ),
-                                  PartnerFormField(
-                                    label: 'IFSC Code',
-                                    icon: Icons.tag,
-                                    controller: _ifscCtrl,
-                                    required: true,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(
-                                        RegExp(r'[A-Za-z0-9]'),
-                                      ),
-                                      LengthLimitingTextInputFormatter(11),
-                                    ],
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'IFSC is required';
-                                      }
-                                      if (!RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$')
-                                          .hasMatch(v.trim().toUpperCase())) {
-                                        return 'Invalid IFSC format';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                              PartnerFormRow(
-                                children: [
-                                  PartnerFormField(
-                                    label: 'Account Number',
-                                    icon: Icons.numbers,
-                                    controller: _accountCtrl,
-                                    required: true,
-                                    keyboard: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                  ),
-                                  PartnerFormField(
-                                    label: 'Confirm Account Number',
-                                    icon: Icons.numbers,
-                                    controller: _confirmAccountCtrl,
-                                    required: true,
-                                    keyboard: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                    validator: (v) {
-                                      if (v?.trim() !=
-                                          _accountCtrl.text.trim()) {
-                                        return 'Account numbers do not match';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                              KycDocumentUploadTile(
-                                label: 'Bank Passbook / Cancelled Cheque',
-                                icon: Icons.menu_book_outlined,
-                                fileName: _passbookLabel,
-                                hasFile: _hasPassbook,
-                                onPick: _pickPassbook,
-                                onView: _passbook.existingUrl != null
-                                    ? () => _openUrl(_passbook.existingUrl!)
-                                    : null,
+                              SizedBox(width: 4),
+                              Text(
+                                'Doc uploaded',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.success,
+                                ),
                               ),
                             ],
                           ),
                         ),
+                      IconButton(
+                        onPressed:
+                            _submitting ? null : () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
                       ),
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(top: BorderSide(color: AppColors.border)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed:
-                        _submitting ? null : () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: _submitting ? null : _submit,
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                ),
+                Flexible(
+                  child: _loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(48),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : ColoredBox(
+                          color: AppColors.background.withValues(alpha: 0.45),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _BankSection(
+                                    step: '1',
+                                    title: 'Bank Account',
+                                    subtitle: 'Account holder and bank details',
+                                    icon: Icons.account_balance_outlined,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        PartnerFormField(
+                                          label: 'Account Holder Name',
+                                          icon: Icons.person_outline,
+                                          controller: _holderCtrl,
+                                          required: true,
+                                        ),
+                                        PartnerFormRow(
+                                          children: [
+                                            PartnerFormField(
+                                              label: 'Bank Name',
+                                              icon: Icons.account_balance,
+                                              controller: _bankCtrl,
+                                              required: true,
+                                            ),
+                                            PartnerFormField(
+                                              label: 'IFSC Code',
+                                              icon: Icons.tag,
+                                              controller: _ifscCtrl,
+                                              required: true,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .allow(
+                                                  RegExp(r'[A-Za-z0-9]'),
+                                                ),
+                                                LengthLimitingTextInputFormatter(
+                                                  11,
+                                                ),
+                                              ],
+                                              validator: (v) {
+                                                if (v == null ||
+                                                    v.trim().isEmpty) {
+                                                  return 'IFSC is required';
+                                                }
+                                                if (!RegExp(
+                                                  r'^[A-Z]{4}0[A-Z0-9]{6}$',
+                                                ).hasMatch(
+                                                  v.trim().toUpperCase(),
+                                                )) {
+                                                  return 'Invalid IFSC format';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        PartnerFormRow(
+                                          children: [
+                                            PartnerFormField(
+                                              label: 'Account Number',
+                                              icon: Icons.numbers,
+                                              controller: _accountCtrl,
+                                              required: true,
+                                              keyboard: TextInputType.number,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .digitsOnly,
+                                              ],
+                                            ),
+                                            PartnerFormField(
+                                              label: 'Confirm Account Number',
+                                              icon: Icons.numbers,
+                                              controller: _confirmAccountCtrl,
+                                              required: true,
+                                              keyboard: TextInputType.number,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .digitsOnly,
+                                              ],
+                                              validator: (v) {
+                                                if (v?.trim() !=
+                                                    _accountCtrl.text.trim()) {
+                                                  return 'Account numbers do not match';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _BankSection(
+                                    step: '2',
+                                    title: 'Passbook Document',
+                                    subtitle:
+                                        'Upload passbook or cancelled cheque',
+                                    icon: Icons.menu_book_outlined,
+                                    child: KycDocumentUploadTile(
+                                      label:
+                                          'Bank Passbook / Cancelled Cheque',
+                                      icon: Icons.menu_book_outlined,
+                                      fileName: _passbookLabel,
+                                      hasFile: _hasPassbook,
+                                      sizeHint: KycDocumentLimits.uploadHint(
+                                        KycDocType.passbook,
+                                      ),
+                                      errorText: _passbook.errorMessage,
+                                      onPick: _pickPassbook,
+                                      onView: _passbook.existingUrl != null
+                                          ? () => _openUrl(
+                                                _passbook.existingUrl!,
+                                              )
+                                          : null,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          )
-                        : const Icon(Icons.save_outlined, size: 18),
-                    label: Text(
-                      _submitting ? 'Saving...' : 'Save Account Details',
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                          ),
+                        ),
+                ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.border.withValues(alpha: 0.9),
                       ),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Text(
+                        KycDocumentLimits.uploadHint(KycDocType.passbook),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.85,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed:
+                            _submitting ? null : () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: _submitting ? null : _submit,
+                        icon: _submitting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined, size: 18),
+                        label: Text(
+                          _submitting ? 'Saving...' : 'Save Account Details',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _BankSection extends StatelessWidget {
+  const _BankSection({
+    required this.step,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.child,
+  });
+
+  final String step;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  step,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                icon,
+                size: 18,
+                color: AppColors.primary.withValues(alpha: 0.7),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
       ),
     );
   }
@@ -343,60 +624,5 @@ class _LocalDoc {
   String? existingUrl;
   String? localPath;
   String? localName;
-}
-
-class _BankHeader extends StatelessWidget {
-  const _BankHeader({required this.partnerName, this.onClose});
-
-  final String partnerName;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_outlined,
-              color: AppColors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Account Details',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  partnerName,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
-        ],
-      ),
-    );
-  }
+  String? errorMessage;
 }

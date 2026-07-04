@@ -269,3 +269,64 @@ const partnerTableHeaderStyle = TextStyle(
   letterSpacing: 0.9,
   color: AppColors.primaryDark,
 );
+
+const partnerTableColumnPadding = EdgeInsets.symmetric(horizontal: 14);
+
+const partnerTableStoreDetailsWidth = 320.0;
+const partnerTableCityWidth = 120.0;
+const partnerTableCategoryWidth = 130.0;
+const partnerTableStatusWidth = 100.0;
+
+const partnerTableActionButtonSize = 30.0;
+const partnerTableActionGap = 4.0;
+const partnerTableActionCount = 4;
+
+double get partnerTableActionsColumnWidth =>
+    partnerTableActionCount * partnerTableActionButtonSize +
+    (partnerTableActionCount - 1) * partnerTableActionGap +
+    partnerTableColumnPadding.left +
+    partnerTableColumnPadding.right;
+
+double partnerTableMinWidth({required double hubColumnWidth}) =>
+    partnerTableStoreDetailsWidth +
+    partnerTableCityWidth +
+    partnerTableCategoryWidth +
+    partnerTableStatusWidth +
+    hubColumnWidth +
+    partnerTableActionsColumnWidth;
+
+class PartnerTableColumn extends StatelessWidget {
+  const PartnerTableColumn({
+    super.key,
+    required this.width,
+    required this.child,
+    this.align = Alignment.centerLeft,
+    this.showDivider = true,
+  });
+
+  final double width;
+  final Widget child;
+  final Alignment align;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: partnerTableColumnPadding,
+        alignment: align,
+        decoration: showDivider
+            ? BoxDecoration(
+                border: Border(
+                  right: BorderSide(
+                    color: AppColors.border.withValues(alpha: 0.65),
+                  ),
+                ),
+              )
+            : null,
+        child: child,
+      ),
+    );
+  }
+}

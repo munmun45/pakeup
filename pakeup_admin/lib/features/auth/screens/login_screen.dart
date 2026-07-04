@@ -41,7 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) context.go('/dashboard');
     } catch (e) {
       if (mounted) {
-        AppSnackBar.error(context, e.toString());
+        AppSnackBar.actionFailed(context, 'sign in', e);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

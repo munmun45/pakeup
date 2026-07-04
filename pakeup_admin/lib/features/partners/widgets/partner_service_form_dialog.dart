@@ -67,7 +67,10 @@ class _PartnerServiceFormDialogState
     }
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     final price = double.tryParse(_priceCtrl.text.trim()) ?? 0;
     final duration = int.tryParse(_durationCtrl.text.trim()) ?? 30;
@@ -96,9 +99,23 @@ class _PartnerServiceFormDialogState
           data: data,
         );
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        AppSnackBar.success(
+          context,
+          widget.existing == null
+              ? 'Service "${data.name}" added successfully'
+              : 'Service "${data.name}" updated successfully',
+        );
+        Navigator.pop(context, true);
+      }
     } catch (e) {
-      if (mounted) AppSnackBar.error(context, e.toString());
+      if (mounted) {
+        AppSnackBar.actionFailed(
+          context,
+          widget.existing == null ? 'add service' : 'update service',
+          e,
+        );
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

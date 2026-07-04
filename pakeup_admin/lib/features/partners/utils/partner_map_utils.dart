@@ -21,19 +21,12 @@ class PartnerMapUtils {
     return null;
   }
 
-  static String? resolvePreviewUrl({
-    String? googleMapEmbed,
-    double? latitude,
-    double? longitude,
-  }) {
-    final embed = extractEmbedUrl(googleMapEmbed);
-    if (embed != null && embed.isNotEmpty) return embed;
+  static String googleMapsUrl(double latitude, double longitude) {
+    return 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+  }
 
-    if (latitude != null && longitude != null) {
-      return 'https://maps.google.com/maps?q=$latitude,$longitude&hl=en&z=15&output=embed';
-    }
-
-    return null;
+  static String googleMapsEmbedUrl(double latitude, double longitude) {
+    return 'https://maps.google.com/maps?q=$latitude,$longitude&hl=en&z=15&output=embed';
   }
 
   static String? externalMapsUrl({
@@ -41,12 +34,27 @@ class PartnerMapUtils {
     double? latitude,
     double? longitude,
   }) {
+    if (latitude != null && longitude != null) {
+      return googleMapsUrl(latitude, longitude);
+    }
+
     final embed = extractEmbedUrl(googleMapEmbed);
     if (embed != null) return embed;
 
+    return null;
+  }
+
+  static String? resolvePreviewUrl({
+    String? googleMapEmbed,
+    double? latitude,
+    double? longitude,
+  }) {
     if (latitude != null && longitude != null) {
-      return 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+      return googleMapsEmbedUrl(latitude, longitude);
     }
+
+    final embed = extractEmbedUrl(googleMapEmbed);
+    if (embed != null && embed.isNotEmpty) return embed;
 
     return null;
   }
@@ -57,7 +65,8 @@ class PartnerMapUtils {
   }
 
   static String buildEmbedFromCoords(double latitude, double longitude) {
-    return '<iframe src="https://maps.google.com/maps?q=$latitude,$longitude&hl=en&z=15&output=embed" '
+    final src = googleMapsEmbedUrl(latitude, longitude);
+    return '<iframe src="$src" '
         'width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>';
   }
 }

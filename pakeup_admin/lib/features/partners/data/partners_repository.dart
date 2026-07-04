@@ -1,8 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'partner_kyc_repository.dart';
+
 class PartnerRecord {
   const PartnerRecord({
     required this.id,
+    this.accountId,
     required this.businessName,
     required this.ownerName,
     this.phone,
@@ -24,10 +27,14 @@ class PartnerRecord {
     this.notes,
     this.isActive = true,
     this.kycStatus = 'pending',
+    this.loginId,
+    this.hasPassword = false,
+    this.storeCount = 1,
     this.createdAt,
   });
 
   final String id;
+  final String? accountId;
   final String businessName;
   final String ownerName;
   final String? phone;
@@ -49,6 +56,9 @@ class PartnerRecord {
   final String? notes;
   final bool isActive;
   final String kycStatus;
+  final String? loginId;
+  final bool hasPassword;
+  final int storeCount;
   final DateTime? createdAt;
 
   String get displayCategory => categoryName ?? category;
@@ -56,6 +66,7 @@ class PartnerRecord {
   factory PartnerRecord.fromJson(Map<String, dynamic> json) {
     return PartnerRecord(
       id: json['id'] as String,
+      accountId: json['account_id'] as String?,
       businessName: json['business_name'] as String,
       ownerName: json['owner_name'] as String,
       phone: json['phone'] as String?,
@@ -77,6 +88,9 @@ class PartnerRecord {
       notes: json['notes'] as String?,
       isActive: json['is_active'] as bool? ?? true,
       kycStatus: json['kyc_status'] as String? ?? 'pending',
+      loginId: json['login_id'] as String?,
+      hasPassword: json['has_password'] as bool? ?? false,
+      storeCount: json['store_count'] as int? ?? 1,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
@@ -90,10 +104,62 @@ class PartnerRecord {
   }
 }
 
+class PartnerOwnerAccount {
+  const PartnerOwnerAccount({
+    required this.id,
+    required this.ownerName,
+    this.phone,
+    this.email,
+    this.whatsapp,
+    this.alternatePhone,
+    this.loginId,
+    this.hasPassword = false,
+    this.isActive = true,
+    this.storeCount = 0,
+    this.createdAt,
+  });
+
+  final String id;
+  final String ownerName;
+  final String? phone;
+  final String? email;
+  final String? whatsapp;
+  final String? alternatePhone;
+  final String? loginId;
+  final bool hasPassword;
+  final bool isActive;
+  final int storeCount;
+  final DateTime? createdAt;
+
+  String get displayLabel {
+    final phonePart = phone?.trim().isNotEmpty == true ? phone!.trim() : 'No phone';
+    return '$ownerName · $phonePart · $storeCount store(s)';
+  }
+
+  factory PartnerOwnerAccount.fromJson(Map<String, dynamic> json) {
+    return PartnerOwnerAccount(
+      id: json['id'] as String,
+      ownerName: json['owner_name'] as String,
+      phone: json['phone'] as String?,
+      email: json['email'] as String?,
+      whatsapp: json['whatsapp'] as String?,
+      alternatePhone: json['alternate_phone'] as String?,
+      loginId: json['login_id'] as String?,
+      hasPassword: json['has_password'] as bool? ?? false,
+      isActive: json['is_active'] as bool? ?? true,
+      storeCount: json['store_count'] as int? ?? 0,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
+    );
+  }
+}
+
 class PartnerFormData {
   const PartnerFormData({
     required this.businessName,
     required this.ownerName,
+    this.accountId,
     this.phone,
     this.email,
     this.whatsapp,
@@ -114,6 +180,7 @@ class PartnerFormData {
 
   final String businessName;
   final String ownerName;
+  final String? accountId;
   final String? phone;
   final String? email;
   final String? whatsapp;
@@ -134,6 +201,7 @@ class PartnerFormData {
   Map<String, dynamic> toRpcParams() => {
         'business_name': businessName,
         'owner_name': ownerName,
+        if (accountId != null) 'account_id': accountId,
         'phone': phone,
         'email': email,
         'whatsapp': whatsapp,
@@ -153,10 +221,46 @@ class PartnerFormData {
       };
 }
 
+class PartnerAccountFormData {
+  const PartnerAccountFormData({
+    required this.ownerName,
+    required this.phone,
+    this.email,
+    this.whatsapp,
+    this.alternatePhone,
+    this.password,
+    this.phoneVerificationToken,
+    this.whatsappVerificationToken,
+  });
+
+  final String ownerName;
+  final String phone;
+  final String? email;
+  final String? whatsapp;
+  final String? alternatePhone;
+  final String? password;
+  final String? phoneVerificationToken;
+  final String? whatsappVerificationToken;
+
+  Map<String, dynamic> toRpcParams() => {
+        'owner_name': ownerName,
+        'phone': phone,
+        'email': email,
+        'whatsapp': whatsapp,
+        'alternate_phone': alternatePhone,
+        'login_pass': password,
+        if (phoneVerificationToken != null)
+          'phone_verification_token': phoneVerificationToken,
+        if (whatsappVerificationToken != null)
+          'whatsapp_verification_token': whatsappVerificationToken,
+      };
+}
+
 class PartnersRepository {
-  PartnersRepository(this._client);
+  PartnersRepository(this._client, this._kycRepository);
 
   final SupabaseClient _client;
+  final PartnerKycRepository _kycRepository;
 
   List<T> _parseList<T>(
     dynamic result,
@@ -177,6 +281,16 @@ class PartnersRepository {
     return _parseList(result, PartnerRecord.fromJson);
   }
 
+  Future<List<PartnerOwnerAccount>> listPartnerAccounts(
+    String callerId,
+  ) async {
+    final result = await _client.rpc<dynamic>(
+      'list_partner_accounts',
+      params: {'caller_id': callerId},
+    );
+    return _parseList(result, PartnerOwnerAccount.fromJson);
+  }
+
   Future<void> createPartner({
     required String callerId,
     required PartnerFormData data,
@@ -184,6 +298,66 @@ class PartnersRepository {
     await _client.rpc(
       'create_partner',
       params: {'caller_id': callerId, ...data.toRpcParams()},
+    );
+  }
+
+  Future<void> createPartnerAccount({
+    required String callerId,
+    required PartnerAccountFormData data,
+  }) async {
+    await _client.rpc(
+      'create_partner_account',
+      params: {'caller_id': callerId, ...data.toRpcParams()},
+    );
+  }
+
+  Future<void> updatePartnerAccount({
+    required String callerId,
+    required String accountId,
+    required PartnerAccountFormData data,
+  }) async {
+    await _client.rpc(
+      'update_partner_account',
+      params: {
+        'caller_id': callerId,
+        'account_id': accountId,
+        ...data.toRpcParams(),
+      },
+    );
+  }
+
+  Future<void> deletePartnerAccount({
+    required String callerId,
+    required String accountId,
+  }) async {
+    final stores = await listPartners(callerId);
+    for (final store in stores) {
+      if (store.accountId == accountId) {
+        await _kycRepository.deletePartnerDocuments(store.id);
+      }
+    }
+
+    await _client.rpc(
+      'delete_partner_account',
+      params: {
+        'caller_id': callerId,
+        'account_id': accountId,
+      },
+    );
+  }
+
+  Future<void> setPartnerAccountActive({
+    required String callerId,
+    required String accountId,
+    required bool active,
+  }) async {
+    await _client.rpc(
+      'set_partner_account_active',
+      params: {
+        'caller_id': callerId,
+        'account_id': accountId,
+        'active': active,
+      },
     );
   }
 
@@ -206,6 +380,8 @@ class PartnersRepository {
     required String callerId,
     required String partnerId,
   }) async {
+    await _kycRepository.deletePartnerDocuments(partnerId);
+
     await _client.rpc(
       'delete_partner',
       params: {
@@ -241,6 +417,23 @@ class PartnersRepository {
         'caller_id': callerId,
         'partner_id': partnerId,
         'new_status': status,
+      },
+    );
+  }
+
+  Future<void> setPartnerPassword({
+    required String callerId,
+    required String partnerId,
+    required String loginId,
+    required String password,
+  }) async {
+    await _client.rpc(
+      'set_partner_password',
+      params: {
+        'caller_id': callerId,
+        'partner_id': partnerId,
+        'login_id': loginId,
+        'new_pass': password,
       },
     );
   }

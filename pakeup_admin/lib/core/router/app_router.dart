@@ -7,6 +7,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/dashboard/widgets/admin_shell.dart';
 import '../../features/partners/screens/add_partners_screen.dart';
+import '../../features/partners/screens/create_partner_screen.dart';
 import '../../features/partners/screens/manage_partner_categories_screen.dart';
 import '../../features/partners/screens/partner_kyc_screen.dart';
 import '../../features/partners/screens/partner_manage_accounts_screen.dart';
@@ -102,6 +103,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: '/partners/create-partner',
+            pageBuilder: (context, state) => buildAdminPage(
+              state: state,
+              child: const CreatePartnerScreen(),
+            ),
+          ),
+          GoRoute(
             path: '/partners/add',
             pageBuilder: (context, state) => buildAdminPage(
               state: state,
@@ -140,6 +148,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             if (page.route != null &&
                 page.route != '/dashboard' &&
                 page.route != '/manage-admins' &&
+                page.key != 'partner_create_account' &&
                 page.key != 'add_partners' &&
                 page.key != 'partner_categories' &&
                 page.key != 'partner_kyc' &&

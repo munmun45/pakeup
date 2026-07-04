@@ -7,6 +7,7 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/section_header.dart';
 import '../data/partner_categories_repository.dart';
 import '../providers/partner_categories_provider.dart';
+import '../widgets/partner_form_field.dart';
 import '../widgets/partner_table_widgets.dart';
 
 class ManagePartnerCategoriesScreen extends ConsumerWidget {
@@ -133,7 +134,10 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
     if (result == null) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     final repo = ref.read(partnerCategoriesRepositoryProvider);
     try {
@@ -144,7 +148,10 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
           slug: result.slug,
         );
         if (context.mounted) {
-          AppSnackBar.success(context, 'Category "${result.name}" added');
+          AppSnackBar.success(
+            context,
+            'Category "${result.name}" added successfully',
+          );
         }
       } else {
         await repo.updateCategory(
@@ -154,13 +161,22 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
           slug: result.slug,
         );
         if (context.mounted) {
-          AppSnackBar.success(context, 'Category updated');
+          AppSnackBar.success(
+            context,
+            'Category "${result.name}" updated successfully',
+          );
         }
       }
       ref.invalidate(partnerCategoriesListProvider);
       ref.invalidate(activePartnerCategoriesProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(
+          context,
+          existing == null ? 'add category' : 'update category',
+          e,
+        );
+      }
     }
   }
 
@@ -170,7 +186,10 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
     PartnerCategory category,
   ) async {
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(partnerCategoriesRepositoryProvider).setCategoryActive(
@@ -189,7 +208,9 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
       ref.invalidate(partnerCategoriesListProvider);
       ref.invalidate(activePartnerCategoriesProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(context, 'update category status', e);
+      }
     }
   }
 
@@ -220,7 +241,10 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(partnerCategoriesRepositoryProvider).deleteCategory(
@@ -228,12 +252,17 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
             categoryId: category.id,
           );
       if (context.mounted) {
-        AppSnackBar.success(context, 'Deleted "${category.name}"');
+        AppSnackBar.success(
+          context,
+          'Category "${category.name}" deleted successfully',
+        );
       }
       ref.invalidate(partnerCategoriesListProvider);
       ref.invalidate(activePartnerCategoriesProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(context, 'delete category', e);
+      }
     }
   }
 }
@@ -360,68 +389,249 @@ class _CategoryFormDialogState extends State<_CategoryFormDialog> {
     final isEdit = widget.existing != null;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Material(
+            color: AppColors.surface,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  isEdit ? 'Edit Category' : 'Add Category',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Category Name',
-                    prefixIcon: Icon(Icons.label_outline),
-                  ),
-                  validator: (v) =>
-                      v?.trim().isEmpty == true ? 'Name is required' : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _slugCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Slug (optional)',
-                    hintText: 'auto-generated from name',
-                    prefixIcon: Icon(Icons.link),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 8, 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.14),
+                        AppColors.surface,
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: () {
-                        if (!_formKey.currentState!.validate()) return;
-                        Navigator.pop(
-                          context,
-                          (
-                            name: _nameCtrl.text.trim(),
-                            slug: _slugCtrl.text.trim().isEmpty
-                                ? null
-                                : _slugCtrl.text.trim(),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.border.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
                           ),
-                        );
-                      },
-                      child: Text(isEdit ? 'Save' : 'Add'),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          isEdit
+                              ? Icons.edit_note_rounded
+                              : Icons.category_rounded,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isEdit ? 'Edit Category' : 'Add Category',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              isEdit
+                                  ? 'Update name or slug for this category'
+                                  : 'Create a new partner category type',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                ColoredBox(
+                  color: AppColors.background.withValues(alpha: 0.45),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                    child: Form(
+                      key: _formKey,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.025),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    '1',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Category Details',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Name shown in Add Partner dropdown',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.label_outline,
+                                  size: 18,
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            PartnerFormField(
+                              label: 'Category Name',
+                              icon: Icons.label_outline,
+                              controller: _nameCtrl,
+                              required: true,
+                              hint: 'e.g. Salon, Spa, Clinic...',
+                              validator: (v) => v?.trim().isEmpty == true
+                                  ? 'Name is required'
+                                  : null,
+                            ),
+                            PartnerFormField(
+                              label: 'Slug',
+                              icon: Icons.link,
+                              controller: _slugCtrl,
+                              hint: 'auto-generated from name if empty',
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.border.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Slug is used in URLs and filters',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.85,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (!_formKey.currentState!.validate()) return;
+                          Navigator.pop(
+                            context,
+                            (
+                              name: _nameCtrl.text.trim(),
+                              slug: _slugCtrl.text.trim().isEmpty
+                                  ? null
+                                  : _slugCtrl.text.trim(),
+                            ),
+                          );
+                        },
+                        icon: Icon(
+                          isEdit ? Icons.save_outlined : Icons.add_rounded,
+                          size: 18,
+                        ),
+                        label: Text(isEdit ? 'Save Changes' : 'Add Category'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

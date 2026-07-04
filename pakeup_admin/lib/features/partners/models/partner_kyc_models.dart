@@ -1,3 +1,109 @@
+class PartnerKycOverviewRecord {
+  const PartnerKycOverviewRecord({
+    required this.partnerId,
+    required this.businessName,
+    required this.ownerName,
+    this.isActive = true,
+    this.kycStatus = 'pending',
+    this.panNumber,
+    this.aadhaarNumber,
+    this.hasAadhaarDoc = false,
+    this.hasPanDoc = false,
+    this.hasAgreementDoc = false,
+    this.hasGstDoc = false,
+    this.hasOtherDoc = false,
+    this.hasPassbookDoc = false,
+  });
+
+  final String partnerId;
+  final String businessName;
+  final String ownerName;
+  final bool isActive;
+  final String kycStatus;
+  final String? panNumber;
+  final String? aadhaarNumber;
+  final bool hasAadhaarDoc;
+  final bool hasPanDoc;
+  final bool hasAgreementDoc;
+  final bool hasGstDoc;
+  final bool hasOtherDoc;
+  final bool hasPassbookDoc;
+
+  static const totalDocSlots = 5;
+
+  int get uploadedDocCount => documentStatuses.where((d) => d.uploaded).length;
+
+  List<KycDocStatusItem> get documentStatuses => [
+        KycDocStatusItem(
+          shortLabel: 'AD',
+          fullLabel: 'Aadhaar',
+          uploaded: hasAadhaarDoc,
+        ),
+        KycDocStatusItem(
+          shortLabel: 'PAN',
+          fullLabel: 'PAN',
+          uploaded: hasPanDoc,
+        ),
+        KycDocStatusItem(
+          shortLabel: 'AGR',
+          fullLabel: 'Agreement',
+          uploaded: hasAgreementDoc,
+        ),
+        KycDocStatusItem(
+          shortLabel: 'GST',
+          fullLabel: 'GST',
+          uploaded: hasGstDoc,
+        ),
+        KycDocStatusItem(
+          shortLabel: 'OTH',
+          fullLabel: 'Other',
+          uploaded: hasOtherDoc,
+        ),
+      ];
+
+  String get displayPan {
+    final v = panNumber?.trim();
+    if (v == null || v.isEmpty) return '—';
+    return v.toUpperCase();
+  }
+
+  String get displayAadhaar {
+    final v = aadhaarNumber?.trim();
+    if (v == null || v.isEmpty) return '—';
+    return v;
+  }
+
+  factory PartnerKycOverviewRecord.fromJson(Map<String, dynamic> json) {
+    return PartnerKycOverviewRecord(
+      partnerId: json['partner_id'] as String,
+      businessName: json['business_name'] as String,
+      ownerName: json['owner_name'] as String,
+      isActive: json['is_active'] as bool? ?? true,
+      kycStatus: json['kyc_status'] as String? ?? 'pending',
+      panNumber: json['pan_number'] as String?,
+      aadhaarNumber: json['aadhaar_number'] as String?,
+      hasAadhaarDoc: json['has_aadhaar_doc'] as bool? ?? false,
+      hasPanDoc: json['has_pan_doc'] as bool? ?? false,
+      hasAgreementDoc: json['has_agreement_doc'] as bool? ?? false,
+      hasGstDoc: json['has_gst_doc'] as bool? ?? false,
+      hasOtherDoc: json['has_other_doc'] as bool? ?? false,
+      hasPassbookDoc: json['has_passbook_doc'] as bool? ?? false,
+    );
+  }
+}
+
+class KycDocStatusItem {
+  const KycDocStatusItem({
+    required this.shortLabel,
+    required this.fullLabel,
+    required this.uploaded,
+  });
+
+  final String shortLabel;
+  final String fullLabel;
+  final bool uploaded;
+}
+
 class PartnerAccountRecord {
   const PartnerAccountRecord({
     required this.partnerId,

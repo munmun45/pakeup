@@ -7,8 +7,11 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/section_header.dart';
 import '../models/partner_service_models.dart';
 import '../providers/partner_services_provider.dart';
+import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
+import '../utils/partner_navigation.dart';
 import '../widgets/partner_empty_state.dart';
+import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_service_form_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
 import '../widgets/partner_table_widgets.dart';
@@ -20,6 +23,7 @@ class PartnerServicesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final servicesAsync = ref.watch(partnerServicesListProvider);
     final partnersAsync = ref.watch(partnersListProvider);
+    final focus = ref.watch(partnerTableFocusProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -44,6 +48,7 @@ class PartnerServicesScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
+        const PartnerFocusBanner(),
         servicesAsync.when(
           loading: () => const Center(
             child: Padding(
@@ -58,10 +63,15 @@ class PartnerServicesScreen extends ConsumerWidget {
             ),
           ),
           data: (services) {
-            final activeCount = services.where((s) => s.isActive).length;
-            final inactiveCount = services.length - activeCount;
+            final visible = filterByPartnerFocus(
+              services,
+              focus,
+              (s) => s.partnerId,
+            );
+            final activeCount = visible.where((s) => s.isActive).length;
+            final inactiveCount = visible.length - activeCount;
             final partnerCount =
-                services.map((s) => s.partnerId).toSet().length;
+                visible.map((s) => s.partnerId).toSet().length;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,7 +81,7 @@ class PartnerServicesScreen extends ConsumerWidget {
                     PartnerStatChip(
                       icon: Icons.miscellaneous_services_rounded,
                       label: 'Total Services',
-                      value: '${services.length}',
+                      value: '${visible.length}',
                       color: AppColors.primary,
                     ),
                     PartnerStatChip(
@@ -108,7 +118,7 @@ class PartnerServicesScreen extends ConsumerWidget {
                       );
                     }
 
-                    if (services.isEmpty) {
+                    if (visible.isEmpty) {
                       return PartnerEmptyState(
                         icon: Icons.content_paste_search_rounded,
                         title: 'No services yet',
@@ -144,8 +154,8 @@ class PartnerServicesScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            child: const Row(
-                              children: [
+                            child: Row(
+                              children: const [
                                 Expanded(
                                   flex: 2,
                                   child: Text(
@@ -181,6 +191,8 @@ class PartnerServicesScreen extends ConsumerWidget {
                                     style: partnerTableHeaderStyle,
                                   ),
                                 ),
+                                PartnerHubNavHeaders(),
+                                SizedBox(width: 12),
                                 SizedBox(
                                   width: 100,
                                   child: Text(
@@ -192,10 +204,10 @@ class PartnerServicesScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          for (var i = 0; i < services.length; i++)
+                          for (var i = 0; i < visible.length; i++)
                             _ServiceRow(
-                              service: services[i],
-                              isLast: i == services.length - 1,
+                              service: visible[i],
+                              isLast: i == visible.length - 1,
                               onEdit: () => _openForm(
                                 context,
                                 ref,
@@ -231,12 +243,6 @@ class PartnerServicesScreen extends ConsumerWidget {
     if (result != true) return;
 
     ref.invalidate(partnerServicesListProvider);
-    if (context.mounted) {
-      AppSnackBar.success(
-        context,
-        existing == null ? 'Service added' : 'Service updated',
-      );
-    }
   }
 
   Future<void> _toggleActive(
@@ -245,7 +251,10 @@ class PartnerServicesScreen extends ConsumerWidget {
     PartnerServiceRecord service,
   ) async {
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     final data = PartnerServiceFormData(
       partnerId: service.partnerId,
@@ -272,7 +281,9 @@ class PartnerServicesScreen extends ConsumerWidget {
       }
       ref.invalidate(partnerServicesListProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(context, 'update service status', e);
+      }
     }
   }
 
@@ -304,7 +315,10 @@ class PartnerServicesScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(partnerServicesRepositoryProvider).deleteService(
@@ -312,16 +326,21 @@ class PartnerServicesScreen extends ConsumerWidget {
             serviceId: service.id,
           );
       if (context.mounted) {
-        AppSnackBar.success(context, '"${service.name}" deleted');
+        AppSnackBar.success(
+          context,
+          'Service "${service.name}" deleted successfully',
+        );
       }
       ref.invalidate(partnerServicesListProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(context, 'delete service', e);
+      }
     }
   }
 }
 
-class _ServiceRow extends StatelessWidget {
+class _ServiceRow extends ConsumerWidget {
   const _ServiceRow({
     required this.service,
     required this.isLast,
@@ -337,7 +356,7 @@ class _ServiceRow extends StatelessWidget {
   final VoidCallback onToggle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
@@ -423,6 +442,12 @@ class _ServiceRow extends StatelessWidget {
             width: 90,
             child: PartnerStatusBadge(isActive: service.isActive),
           ),
+          PartnerHubNavRow(
+            partnerId: service.partnerId,
+            businessName: service.partnerName,
+            currentPage: PartnerHubPage.service,
+          ),
+          const SizedBox(width: 12),
           SizedBox(
             width: 100,
             child: Row(

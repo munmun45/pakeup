@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/providers/header_search_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -7,9 +9,11 @@ import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
+import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
 import '../widgets/partner_detail_dialog.dart';
 import '../widgets/partner_form_dialog.dart';
+import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_stat_chip.dart';
 import '../widgets/partner_table_widgets.dart';
 
@@ -19,6 +23,8 @@ class AddPartnersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final partnersAsync = ref.watch(partnersListProvider);
+    final focus = ref.watch(partnerTableFocusProvider);
+    final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
     final searchQuery =
         ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
@@ -31,12 +37,15 @@ class AddPartnersScreen extends ConsumerWidget {
           subtitle:
               'Onboard, edit, and manage salon & beauty partners — view, activate, or deactivate anytime.',
           action: FilledButton.icon(
-            onPressed: () => _openForm(context, ref),
+            onPressed: () => _openStoreForm(context, ref),
             icon: const Icon(Icons.add_business_rounded, size: 20),
-            label: const Text('Add Partner'),
+            label: const Text('Add Store'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 14,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -44,6 +53,7 @@ class AddPartnersScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
+        const PartnerFocusBanner(),
         partnersAsync.when(
           loading: () => const Center(
             child: Padding(
@@ -66,6 +76,17 @@ class AddPartnersScreen extends ConsumerWidget {
                         (p.city?.toLowerCase().contains(q) ?? false) ||
                         (p.email?.toLowerCase().contains(q) ?? false);
                   }).toList();
+            final visible = accountFilter != null
+                ? filterByAccountStores(
+                    filtered,
+                    accountFilter,
+                    (p) => p.accountId,
+                  )
+                : filterByPartnerFocus(
+                    filtered,
+                    focus,
+                    (p) => p.id,
+                  );
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,11 +116,11 @@ class AddPartnersScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
                 if (partners.isEmpty)
                   const _EmptyPartnersCard()
-                else if (filtered.isEmpty)
+                else if (visible.isEmpty)
                   _NoSearchResultsCard(query: searchQuery)
                 else
                   _PartnersTable(
-                    partners: filtered,
+                    partners: visible,
                     onView: (p) => _showDetails(context, ref, p),
                     onEdit: (p) => _openForm(context, ref, existing: p),
                     onDelete: (p) => _deletePartner(context, ref, p),
@@ -114,47 +135,31 @@ class AddPartnersScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _openStoreForm(
+    BuildContext context,
+    WidgetRef ref, {
+    PartnerRecord? existing,
+  }) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PartnerFormDialog(
+        existing: existing,
+        storeOnlyMode: existing == null,
+      ),
+    );
+    if (saved == true) {
+      ref.invalidate(partnersListProvider);
+      ref.invalidate(partnerOwnerAccountsListProvider);
+    }
+  }
+
   Future<void> _openForm(
     BuildContext context,
     WidgetRef ref, {
     PartnerRecord? existing,
   }) async {
-    final data = await showDialog<PartnerFormData>(
-      context: context,
-      builder: (context) => PartnerFormDialog(existing: existing),
-    );
-    if (data == null) return;
-
-    final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
-
-    final repo = ref.read(partnersRepositoryProvider);
-    try {
-      if (existing == null) {
-        await repo.createPartner(callerId: user.id, data: data);
-        if (context.mounted) {
-          AppSnackBar.success(
-            context,
-            'Partner "${data.businessName}" added successfully',
-          );
-        }
-      } else {
-        await repo.updatePartner(
-          callerId: user.id,
-          partnerId: existing.id,
-          data: data,
-        );
-        if (context.mounted) {
-          AppSnackBar.success(
-            context,
-            'Partner "${data.businessName}" updated',
-          );
-        }
-      }
-      ref.invalidate(partnersListProvider);
-    } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
-    }
+    await _openStoreForm(context, ref, existing: existing);
   }
 
   void _showDetails(
@@ -217,7 +222,10 @@ class AddPartnersScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(partnersRepositoryProvider).setPartnerActive(
@@ -235,7 +243,9 @@ class AddPartnersScreen extends ConsumerWidget {
       }
       ref.invalidate(partnersListProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(context, 'update partner status', e);
+      }
     }
   }
 
@@ -268,7 +278,10 @@ class AddPartnersScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(partnersRepositoryProvider).deletePartner(
@@ -278,12 +291,14 @@ class AddPartnersScreen extends ConsumerWidget {
       if (context.mounted) {
         AppSnackBar.success(
           context,
-          'Deleted "${partner.businessName}"',
+          'Partner "${partner.businessName}" deleted successfully',
         );
       }
       ref.invalidate(partnersListProvider);
     } catch (e) {
-      if (context.mounted) AppSnackBar.error(context, e.toString());
+      if (context.mounted) {
+        AppSnackBar.actionFailed(context, 'delete partner', e);
+      }
     }
   }
 }
@@ -307,15 +322,16 @@ class _PartnersTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const minWidth = 760.0;
+        final minWidth = partnerTableMinWidth(
+          hubColumnWidth: PartnerHubNavHeaders.tableColumnWidth,
+        );
         final table = Card(
           clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                padding: const EdgeInsets.symmetric(vertical: 11),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.09),
                   border: Border(
@@ -324,32 +340,35 @@ class _PartnersTable extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    SizedBox(
-                      width: 200,
-                      child: Text('PARTNER', style: partnerTableHeaderStyle),
+                    const PartnerTableColumn(
+                      width: partnerTableStoreDetailsWidth,
+                      child:
+                          Text('STORE DETAILS', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
-                      width: 108,
-                      child: Text('PHONE', style: partnerTableHeaderStyle),
-                    ),
-                    SizedBox(
-                      width: 100,
+                    const PartnerTableColumn(
+                      width: partnerTableCityWidth,
                       child: Text('CITY', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
-                      width: 110,
+                    const PartnerTableColumn(
+                      width: partnerTableCategoryWidth,
                       child: Text('CATEGORY', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
-                      width: 82,
+                    const PartnerTableColumn(
+                      width: partnerTableStatusWidth,
                       child: Text('STATUS', style: partnerTableHeaderStyle),
                     ),
-                    Spacer(),
-                    SizedBox(
-                      width: 148,
-                      child: Text(
+                    const Spacer(),
+                    PartnerTableColumn(
+                      width: PartnerHubNavHeaders.tableColumnWidth,
+                      child: const PartnerHubNavHeaders(),
+                    ),
+                    PartnerTableColumn(
+                      width: partnerTableActionsColumnWidth,
+                      showDivider: false,
+                      align: Alignment.centerRight,
+                      child: const Text(
                         'ACTIONS',
                         style: partnerTableHeaderStyle,
                         textAlign: TextAlign.right,
@@ -383,7 +402,7 @@ class _PartnersTable extends StatelessWidget {
   }
 }
 
-class _PartnerRow extends StatelessWidget {
+class _PartnerRow extends ConsumerWidget {
   const _PartnerRow({
     required this.partner,
     required this.isLast,
@@ -401,12 +420,19 @@ class _PartnerRow extends StatelessWidget {
   final VoidCallback onToggleActive;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+    final isAccountFilterActive = partner.accountId != null &&
+        accountFilter?.accountId == partner.accountId;
+
     return Opacity(
       opacity: partner.isActive ? 1 : 0.6,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
+          color: isAccountFilterActive
+              ? AppColors.primary.withValues(alpha: 0.04)
+              : null,
           border: isLast
               ? null
               : const Border(bottom: BorderSide(color: AppColors.border)),
@@ -414,79 +440,15 @@ class _PartnerRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 200,
-              child: InkWell(
-                onTap: onView,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 17,
-                        backgroundColor:
-                            AppColors.primary.withValues(alpha: 0.12),
-                        child: Text(
-                          partner.businessName.isNotEmpty
-                              ? partner.businessName[0].toUpperCase()
-                              : 'P',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              partner.businessName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                            Text(
-                              partner.ownerName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            PartnerTableColumn(
+              width: partnerTableStoreDetailsWidth,
+              child: _StoreDetailsCell(
+                partner: partner,
+                isAccountFilterActive: isAccountFilterActive,
               ),
             ),
-            SizedBox(
-              width: 108,
-              child: Text(
-                partner.phone?.trim().isNotEmpty == true
-                    ? partner.phone!
-                    : '—',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: partner.phone?.trim().isNotEmpty == true
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ),
-            SizedBox(
-              width: 100,
+            PartnerTableColumn(
+              width: partnerTableCityWidth,
               child: Text(
                 partner.city?.trim().isNotEmpty == true
                     ? partner.city!
@@ -496,16 +458,16 @@ class _PartnerRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 12.5),
               ),
             ),
-            SizedBox(
-              width: 110,
+            PartnerTableColumn(
+              width: partnerTableCategoryWidth,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: PartnerCategoryBadge(label: partner.displayCategory),
               ),
             ),
-            SizedBox(
-              width: 82,
+            PartnerTableColumn(
+              width: partnerTableStatusWidth,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -513,11 +475,23 @@ class _PartnerRow extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            SizedBox(
-              width: 148,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+            PartnerTableColumn(
+              width: PartnerHubNavHeaders.tableColumnWidth,
+              child: PartnerHubNavRow(
+                partnerId: partner.id,
+                businessName: partner.businessName,
+              ),
+            ),
+            PartnerTableColumn(
+              width: partnerTableActionsColumnWidth,
+              showDivider: false,
+              align: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   PartnerTableAction(
                     icon: Icons.visibility_outlined,
                     tooltip: 'View',
@@ -548,10 +522,223 @@ class _PartnerRow extends StatelessWidget {
                     color: AppColors.error,
                     onPressed: onDelete,
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StoreDetailsCell extends ConsumerWidget {
+  const _StoreDetailsCell({
+    required this.partner,
+    required this.isAccountFilterActive,
+  });
+
+  final PartnerRecord partner;
+  final bool isAccountFilterActive;
+
+  Future<void> _copyAndCallPhone(BuildContext context, String phone) async {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: digits));
+
+    final uri = Uri(scheme: 'tel', path: digits);
+    final opened =
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!context.mounted) return;
+    if (opened) {
+      AppSnackBar.success(context, 'Phone copied · opening dialer');
+    } else {
+      AppSnackBar.success(context, 'Phone number copied');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phoneRaw = partner.phone?.trim();
+    final hasPhone = phoneRaw != null && phoneRaw.isNotEmpty;
+    final phone = hasPhone ? phoneRaw : 'No phone';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 17,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            child: Text(
+              partner.businessName.isNotEmpty
+                  ? partner.businessName[0].toUpperCase()
+                  : 'P',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        partner.businessName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                    if (partner.storeCount > 1 && partner.accountId != null)
+                      _OwnerStoresChip(
+                        count: partner.storeCount,
+                        active: isAccountFilterActive,
+                        onTap: () {
+                          ref
+                              .read(partnerAccountStoreFilterProvider.notifier)
+                              .state = PartnerAccountStoreFilter(
+                            accountId: partner.accountId!,
+                            ownerName: partner.ownerName,
+                            storeCount: partner.storeCount,
+                          );
+                          ref.read(partnerTableFocusProvider.notifier).state =
+                              null;
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.phone_outlined,
+                      size: 11,
+                      color: AppColors.textSecondary.withValues(alpha: 0.75),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: hasPhone
+                          ? Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${partner.ownerName} · ',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.95),
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () =>
+                                      _copyAndCallPhone(context, phoneRaw),
+                                  child: Text(
+                                    phone,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              partner.ownerName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary
+                                    .withValues(alpha: 0.95),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OwnerStoresChip extends StatelessWidget {
+  const _OwnerStoresChip({
+    required this.count,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final int count;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Material(
+        color: active
+            ? AppColors.primary.withValues(alpha: 0.16)
+            : AppColors.secondary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: active
+                    ? AppColors.primary.withValues(alpha: 0.45)
+                    : AppColors.secondary.withValues(alpha: 0.28),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.storefront_outlined,
+                  size: 12,
+                  color: active ? AppColors.primary : AppColors.secondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$count stores',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: active ? AppColors.primary : AppColors.secondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

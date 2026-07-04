@@ -16,3 +16,11 @@ final partnerAccountsListProvider =
 
   return ref.read(partnerKycRepositoryProvider).listAccounts(user.id);
 });
+
+final partnerKycOverviewListProvider =
+    FutureProvider<List<PartnerKycOverviewRecord>>((ref) async {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return [];
+
+  return ref.read(partnerKycRepositoryProvider).listKycOverview(user.id);
+});

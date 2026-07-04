@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/admin_pages.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/providers/page_refresh.dart';
 import '../../../core/router/page_transitions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/smooth_scroll_behavior.dart';
+import '../../shared/widgets/app_snackbar.dart';
 import 'header_search_bar.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -237,10 +239,9 @@ class AdminShell extends ConsumerWidget {
                       ),
                       const SizedBox(width: 16),
                       _HeaderIconButton(
-                        icon: Icons.person_outline_rounded,
-                        tooltip: 'My Profile',
-                        isActive: currentPageKey == 'profile',
-                        onPressed: () => context.go('/profile'),
+                        icon: Icons.refresh_rounded,
+                        tooltip: 'Refresh page',
+                        onPressed: () => _refreshPage(context, ref),
                       ),
                       const SizedBox(width: 6),
                       _HeaderIconButton(
@@ -299,6 +300,11 @@ class AdminShell extends ConsumerWidget {
     return 'Home / $label';
   }
 
+  void _refreshPage(BuildContext context, WidgetRef ref) {
+    refreshAdminPage(ref, currentPageKey);
+    AppSnackBar.info(context, 'Page refreshed');
+  }
+
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -326,7 +332,7 @@ class AdminShell extends ConsumerWidget {
   }
 }
 
-class _SidebarNavList extends StatefulWidget {
+class _SidebarNavList extends ConsumerStatefulWidget {
   const _SidebarNavList({
     required this.menuGroups,
     required this.currentPageKey,
@@ -336,10 +342,10 @@ class _SidebarNavList extends StatefulWidget {
   final String currentPageKey;
 
   @override
-  State<_SidebarNavList> createState() => _SidebarNavListState();
+  ConsumerState<_SidebarNavList> createState() => _SidebarNavListState();
 }
 
-class _SidebarNavListState extends State<_SidebarNavList> {
+class _SidebarNavListState extends ConsumerState<_SidebarNavList> {
   final _scrollController = ScrollController();
 
   @override

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/partner_kyc_models.dart';
+import '../utils/kyc_document_limits.dart';
 
 class PartnerKycRepository {
   PartnerKycRepository(this._client);
@@ -27,6 +28,22 @@ class PartnerKycRepository {
     );
   }
 
+  Future<List<PartnerKycOverviewRecord>> listKycOverview(String callerId) async {
+    final result = await _client.rpc<dynamic>(
+      'list_partner_kyc_overview',
+      params: {'caller_id': callerId},
+    );
+    if (result == null) return [];
+    final list = result as List<dynamic>;
+    return list
+        .map(
+          (e) => PartnerKycOverviewRecord.fromJson(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
+        .toList();
+  }
+
   Future<PartnerKycRecord> saveKyc({
     required String callerId,
     required String partnerId,
@@ -46,6 +63,24 @@ class PartnerKycRepository {
     );
   }
 
+  Future<void> deletePartnerDocuments(String partnerId) async {
+    try {
+      final entries = await _client.storage.from(_bucket).list(path: partnerId);
+      if (entries.isEmpty) return;
+
+      final paths = entries
+          .where((entry) => entry.name.isNotEmpty)
+          .map((entry) => '$partnerId/${entry.name}')
+          .toList();
+
+      if (paths.isNotEmpty) {
+        await _client.storage.from(_bucket).remove(paths);
+      }
+    } catch (_) {
+      // Storage cleanup is best-effort; DB delete still proceeds.
+    }
+  }
+
   Future<String> uploadDocument({
     required String partnerId,
     required KycDocType docType,
@@ -54,6 +89,11 @@ class PartnerKycRepository {
     final file = File(localPath);
     if (!await file.exists()) {
       throw Exception('File not found');
+    }
+
+    final sizeError = await KycDocumentLimits.validatePath(localPath, docType);
+    if (sizeError != null) {
+      throw Exception(sizeError);
     }
 
     final ext = _extension(localPath);

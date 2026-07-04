@@ -50,6 +50,7 @@ class AdminPages {
       id: 'partners',
       label: 'Partners',
       pageKeys: [
+        'partner_create_account',
         'add_partners',
         'partner_categories',
         'partner_kyc',
@@ -142,8 +143,15 @@ class AdminPages {
       group: 'operations',
     ),
     AdminPageDef(
+      key: 'partner_create_account',
+      label: 'Create Partner',
+      icon: Icons.person_add_alt_1_rounded,
+      route: '/partners/create-partner',
+      group: 'partners',
+    ),
+    AdminPageDef(
       key: 'add_partners',
-      label: 'Add Partners',
+      label: 'Add Stores',
       icon: Icons.storefront_rounded,
       route: '/partners/add',
       group: 'partners',

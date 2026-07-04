@@ -85,7 +85,12 @@ class PakeUpAdminApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       scrollBehavior: const SmoothScrollBehavior(),
-      scaffoldMessengerKey: rootScaffoldMessengerKey,
+      builder: (context, child) {
+        return ScaffoldMessenger(
+          key: rootScaffoldMessengerKey,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       routerConfig: router,
     );
   }

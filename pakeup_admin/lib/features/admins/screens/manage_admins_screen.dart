@@ -818,7 +818,10 @@ extension on ManageAdminsScreen {
     if (result == null) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     final repo = ref.read(adminUsersRepositoryProvider);
 
@@ -861,7 +864,11 @@ extension on ManageAdminsScreen {
       ref.invalidate(adminUsersListProvider);
     } catch (e) {
       if (context.mounted) {
-        AppSnackBar.error(context, e.toString());
+        AppSnackBar.actionFailed(
+          context,
+          existing == null ? 'create admin' : 'update admin',
+          e,
+        );
       }
     }
   }
@@ -902,7 +909,10 @@ extension on ManageAdminsScreen {
     if (confirmed != true) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(adminUsersRepositoryProvider).setAdminActive(
@@ -922,7 +932,7 @@ extension on ManageAdminsScreen {
       ref.invalidate(adminUsersListProvider);
     } catch (e) {
       if (context.mounted) {
-        AppSnackBar.error(context, e.toString());
+        AppSnackBar.actionFailed(context, 'update admin status', e);
       }
     }
   }
@@ -957,7 +967,10 @@ extension on ManageAdminsScreen {
     if (confirmed != true) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
 
     try {
       await ref.read(adminUsersRepositoryProvider).deleteAdmin(
@@ -965,13 +978,16 @@ extension on ManageAdminsScreen {
             targetId: targetId,
           );
       if (context.mounted) {
-        AppSnackBar.success(context, 'Deleted "$targetId"');
+        AppSnackBar.success(
+          context,
+          'Admin "$targetId" deleted successfully',
+        );
       }
 
       ref.invalidate(adminUsersListProvider);
     } catch (e) {
       if (context.mounted) {
-        AppSnackBar.error(context, e.toString());
+        AppSnackBar.actionFailed(context, 'delete admin', e);
       }
     }
   }

@@ -62,6 +62,9 @@ class PartnerFormField extends StatelessWidget {
     this.onChanged,
     this.validator,
     this.compact = false,
+    this.obscureText = false,
+    this.readOnly = false,
+    this.suffix,
   });
 
   final String label;
@@ -76,6 +79,9 @@ class PartnerFormField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final String? Function(String?)? validator;
   final bool compact;
+  final bool obscureText;
+  final bool readOnly;
+  final Widget? suffix;
 
   static InputDecoration fieldDecoration({String? hint, bool compact = false}) {
     return InputDecoration(
@@ -121,12 +127,16 @@ class PartnerFormField extends StatelessWidget {
           TextFormField(
             controller: controller,
             keyboardType: keyboard,
+            obscureText: obscureText,
+            readOnly: readOnly,
             maxLines: maxLines,
             minLines: minLines ?? (maxLines > 1 ? maxLines : 1),
             inputFormatters: inputFormatters,
             onChanged: onChanged,
             style: TextStyle(fontSize: compact ? 13 : 14, height: 1.35),
-            decoration: fieldDecoration(hint: hint, compact: compact),
+            decoration: fieldDecoration(hint: hint, compact: compact).copyWith(
+              suffixIcon: suffix,
+            ),
             validator: validator ??
                 (required
                     ? (v) =>
