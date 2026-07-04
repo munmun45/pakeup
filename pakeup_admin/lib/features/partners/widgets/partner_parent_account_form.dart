@@ -59,14 +59,16 @@ class _PartnerParentAccountFormState
   bool get _hasAlternate => _alternatePhoneCtrl.text.trim().isNotEmpty;
 
   bool get _needsPhoneOtp =>
-      !widget.isEdit || _phoneCtrl.text.trim() != (widget.existing?.phone ?? '');
+      !widget.isEdit ||
+      _phoneCtrl.text.trim() != (widget.existing?.phone ?? '');
 
   bool get _needsWhatsappOtp =>
       !widget.isEdit ||
       _whatsappCtrl.text.trim() != (widget.existing?.whatsapp ?? '');
 
   bool get _needsEmailOtp =>
-      !widget.isEdit || _emailCtrl.text.trim() != (widget.existing?.email ?? '');
+      !widget.isEdit ||
+      _emailCtrl.text.trim() != (widget.existing?.email ?? '');
 
   bool get _needsAlternateOtp {
     if (!_hasAlternate) return false;
@@ -101,8 +103,8 @@ class _PartnerParentAccountFormState
     final e = widget.existing;
     final useDefaults = !widget.isEdit;
     _ownerCtrl = TextEditingController(
-      text: e?.ownerName ??
-          (useDefaults ? PartnerAccountDefaults.ownerName : ''),
+      text:
+          e?.ownerName ?? (useDefaults ? PartnerAccountDefaults.ownerName : ''),
     );
     _phoneCtrl = TextEditingController(
       text: e?.phone ?? (useDefaults ? PartnerAccountDefaults.phone : ''),
@@ -114,7 +116,8 @@ class _PartnerParentAccountFormState
       text: e?.whatsapp ?? (useDefaults ? PartnerAccountDefaults.whatsapp : ''),
     );
     _alternatePhoneCtrl = TextEditingController(
-      text: e?.alternatePhone ??
+      text:
+          e?.alternatePhone ??
           (useDefaults ? PartnerAccountDefaults.alternatePhone : ''),
     );
     if (useDefaults) {
@@ -125,8 +128,8 @@ class _PartnerParentAccountFormState
     _phoneVerified = widget.isEdit;
     _whatsappVerified = widget.isEdit;
     _emailVerified = widget.isEdit;
-    _alternateVerified = widget.isEdit ||
-        (e?.alternatePhone?.trim().isNotEmpty != true);
+    _alternateVerified =
+        widget.isEdit || (e?.alternatePhone?.trim().isNotEmpty != true);
     _alternatePhoneCtrl.addListener(_onAlternateChanged);
     if (!widget.isEdit) {
       _phoneCtrl.addListener(_syncWhatsappFromPhone);
@@ -148,10 +151,7 @@ class _PartnerParentAccountFormState
     if (ui == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ui.update(
-        canSubmit: _canSubmit,
-        isSubmitting: _submitting,
-      );
+      ui.update(canSubmit: _canSubmit, isSubmitting: _submitting);
     });
   }
 
@@ -169,7 +169,8 @@ class _PartnerParentAccountFormState
     if (phone.isEmpty) return;
 
     final whatsapp = _whatsappCtrl.text.trim();
-    final linkedToPhone = whatsapp.isEmpty ||
+    final linkedToPhone =
+        whatsapp.isEmpty ||
         _lastSyncedPhone == null ||
         whatsapp == _lastSyncedPhone;
 
@@ -272,10 +273,7 @@ class _PartnerParentAccountFormState
           data: data,
         );
       } else {
-        await repo.createPartnerAccount(
-          callerId: user.id,
-          data: data,
-        );
+        await repo.createPartnerAccount(callerId: user.id, data: data);
       }
       if (!mounted) return;
       AppSnackBar.success(
@@ -321,11 +319,7 @@ class _PartnerParentAccountFormState
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              fields,
-              const SizedBox(height: 8),
-              _inlineFooter(),
-            ],
+            children: [fields, const SizedBox(height: 8), _inlineFooter()],
           );
         },
       ),
@@ -410,10 +404,7 @@ class _PartnerParentAccountFormState
           ),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 14,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           ),
         ),
       ],
@@ -444,9 +435,11 @@ class _PartnerParentAccountFormState
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 16,
-                    color: AppColors.warning.withValues(alpha: 0.9)),
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: AppColors.warning.withValues(alpha: 0.9),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -508,8 +501,7 @@ class _PartnerParentAccountFormState
                         : Icons.visibility_off_outlined,
                     size: 20,
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePass = !_obscurePass),
+                  onPressed: () => setState(() => _obscurePass = !_obscurePass),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -540,9 +532,7 @@ class _PartnerParentAccountFormState
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Required';
-                  return v.trim() == _passCtrl.text.trim()
-                      ? null
-                      : 'No match';
+                  return v.trim() == _passCtrl.text.trim() ? null : 'No match';
                 },
               ),
             ],
@@ -564,8 +554,7 @@ class _PartnerParentAccountFormState
                         : Icons.visibility_off_outlined,
                     size: 20,
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePass = !_obscurePass),
+                  onPressed: () => setState(() => _obscurePass = !_obscurePass),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null;
@@ -591,9 +580,7 @@ class _PartnerParentAccountFormState
                 ),
                 validator: (v) {
                   if (_passCtrl.text.trim().isEmpty) return null;
-                  return v?.trim() == _passCtrl.text.trim()
-                      ? null
-                      : 'No match';
+                  return v?.trim() == _passCtrl.text.trim() ? null : 'No match';
                 },
               ),
             ],
@@ -617,9 +604,7 @@ class _PartnerParentAccountFormState
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              _changePassword
-                  ? 'Enter new password below'
-                  : 'Password is set',
+              _changePassword ? 'Enter new password below' : 'Password is set',
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
@@ -719,7 +704,8 @@ class _PartnerParentAccountFormState
           channel: PartnerOtpChannel.alternate,
           embedded: true,
           required: false,
-          initialVerified: widget.isEdit &&
+          initialVerified:
+              widget.isEdit &&
               widget.existing?.alternatePhone?.trim().isNotEmpty == true,
           initialVerifiedValue: widget.existing?.alternatePhone,
           onVerified: (token) {
