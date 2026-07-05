@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/section_header.dart';
+import '../data/partners_repository.dart';
 import '../models/partner_service_models.dart';
 import '../providers/partner_services_provider.dart';
 import '../providers/partner_table_focus_provider.dart';
@@ -63,11 +64,20 @@ class PartnerServicesScreen extends ConsumerWidget {
             ),
           ),
           data: (services) {
-            final visible = filterByPartnerFocus(
-              services,
-              focus,
-              (s) => s.partnerId,
-            );
+            final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+            final partners = partnersAsync.valueOrNull ?? [];
+            final visible = services.where((s) {
+              if (focus != null && s.partnerId != focus.partnerId) return false;
+              if (accountFilter != null) {
+                final partner = partners.firstWhere(
+                  (p) => p.id == s.partnerId,
+                  orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
+                );
+                if (partner.accountId != accountFilter.accountId) return false;
+              }
+              return true;
+            }).toList();
+
             final activeCount = visible.where((s) => s.isActive).length;
             final inactiveCount = visible.length - activeCount;
             final partnerCount =

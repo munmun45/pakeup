@@ -1,76 +1,30 @@
 -- ============================================================
--- PakeUp – Initial Database Schema (Supabase / PostgreSQL)
--- Run via: supabase db reset   OR   paste in SQL Editor
+-- PakeUp – Admin-Only Database Schema (Supabase / PostgreSQL)
+-- Consolidated from all admin migrations.
+-- Run via: supabase db reset   OR   paste in Supabase SQL Editor
+--
+-- TABLES:
+--   admin                     – admin user accounts
+--   admin_pages               – available page keys for access control
+--   admin_page_access         – which pages each admin can access
+--   partners                  – salon/beauty partner onboarding
+--   partner_categories        – dynamic partner category dropdown
+--   partner_kyc_details       – KYC details per partner
+--   partner_otp_verifications – phone/WhatsApp/email verification OTPs
+--   partner_services          – services offered by each partner
+--   partner_accounts          – partner store login accounts
 -- ============================================================
-
--- Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- ============================================================
 -- ENUMS
 -- ============================================================
-CREATE TYPE user_role AS ENUM ('customer', 'salon_partner', 'admin');
-CREATE TYPE salon_status AS ENUM ('pending', 'approved', 'rejected', 'suspended');
-CREATE TYPE subscription_tier AS ENUM ('free', 'verified', 'pro', 'premium');
-CREATE TYPE booking_type AS ENUM ('in_salon', 'home_visit', 'bridal');
-CREATE TYPE booking_status AS ENUM (
-  'pending', 'confirmed', 'rejected', 'in_progress',
-  'completed', 'cancelled', 'no_show'
-);
-CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'refunded');
-CREATE TYPE kyc_status AS ENUM ('not_submitted', 'pending', 'approved', 'rejected');
-CREATE TYPE ai_plan_type AS ENUM ('free', 'pack_10', 'pack_25', 'unlimited');
-CREATE TYPE coupon_type AS ENUM ('flat', 'percentage');
-CREATE TYPE transaction_type AS ENUM ('credit', 'debit');
-CREATE TYPE wallet_source AS ENUM (
-  'referral', 'refund', 'cashback', 'admin_credit', 'booking_payment'
-);
+DO $$ BEGIN
+  CREATE TYPE admin_role AS ENUM ('super_admin', 'admin');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ============================================================
--- PROFILES (extends auth.users)
+-- HELPER FUNCTIONS
 -- ============================================================
-CREATE TABLE profiles (
-  id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role            user_role NOT NULL DEFAULT 'customer',
-  full_name       TEXT,
-  phone           TEXT UNIQUE,
-  email           TEXT,
-  avatar_url      TEXT,
-  referral_code   TEXT UNIQUE,
-  referred_by     UUID REFERENCES profiles(id),
-  fcm_token       TEXT,
-  device_id       TEXT,
-  is_active       BOOLEAN NOT NULL DEFAULT true,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Auto-create profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, full_name, phone, role)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
-    NEW.phone,
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'customer')
-  );
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- updated_at helper
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -81,529 +35,1002 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER profiles_updated_at
-  BEFORE UPDATE ON profiles
+-- ============================================================
+-- ADMIN TABLE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS admin (
+  id         TEXT PRIMARY KEY,
+  pass       TEXT NOT NULL,
+  role       admin_role NOT NULL DEFAULT 'admin',
+  name       TEXT,
+  phone      TEXT,
+  notes      TEXT,
+  is_active  BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE admin ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO admin (id, pass, role, name) VALUES
+  ('superadmin', 'admin123', 'super_admin', 'Super Admin'),
+  ('admin',      'admin123', 'admin',       'Admin User')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- ADMIN PAGE ACCESS CONTROL
+-- ============================================================
+CREATE TABLE IF NOT EXISTS admin_pages (
+  page_key   TEXT PRIMARY KEY,
+  label      TEXT NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS admin_page_access (
+  admin_id  TEXT NOT NULL REFERENCES admin(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  page_key  TEXT NOT NULL REFERENCES admin_pages(page_key) ON DELETE CASCADE,
+  PRIMARY KEY (admin_id, page_key)
+);
+
+INSERT INTO admin_pages (page_key, label, sort_order) VALUES
+  ('dashboard',          'Dashboard',          1),
+  ('users',              'Users',              2),
+  ('salons',             'Salons',             3),
+  ('bookings',           'Bookings',           4),
+  ('payments',           'Payments',           5),
+  ('commissions',        'Commissions',        6),
+  ('coupons',            'Coupons',            7),
+  ('ai_monitor',         'AI Monitor',         8),
+  ('ads',                'Ads',                9),
+  ('affiliates',         'Affiliates',         10),
+  ('moderation',         'Moderation',         11),
+  ('reports',            'Reports',            12),
+  ('notifications',      'Notifications',      13),
+  ('settings',           'Settings',           14),
+  ('manage_admins',      'Manage Admins',      15),
+  ('add_partners',       'Add Partners',       16),
+  ('partner_kyc',        'KYC',                17),
+  ('partner_services',   'Partner Services',   18),
+  ('partner_accounts',   'Partner Accounts',   19),
+  ('partner_categories', 'Partner Categories', 20)
+ON CONFLICT (page_key) DO NOTHING;
+
+INSERT INTO admin_page_access (admin_id, page_key)
+SELECT 'admin', page_key FROM admin_pages
+WHERE page_key IN (
+  'dashboard', 'users', 'salons', 'bookings',
+  'add_partners', 'partner_kyc', 'partner_services', 'partner_categories'
+)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- PARTNER ACCOUNTS (store login)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS partner_accounts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_name      TEXT NOT NULL,
+  phone           TEXT,
+  email           TEXT,
+  whatsapp        TEXT,
+  alternate_phone TEXT,
+  login_id        TEXT,
+  pass            TEXT,
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS partner_accounts_updated_at ON partner_accounts;
+CREATE TRIGGER partner_accounts_updated_at
+  BEFORE UPDATE ON partner_accounts
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- ============================================================
--- SALONS
+-- PARTNERS
 -- ============================================================
-CREATE TABLE salons (
+CREATE TABLE IF NOT EXISTS partners (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id       UUID REFERENCES partner_accounts(id) ON DELETE SET NULL,
+  business_name    TEXT NOT NULL,
+  owner_name       TEXT NOT NULL,
+  phone            TEXT,
+  email            TEXT,
+  whatsapp         TEXT,
+  alternate_phone  TEXT,
+  city             TEXT,
+  state            TEXT,
+  pincode          TEXT,
+  category         TEXT NOT NULL DEFAULT 'salon',
+  address_line     TEXT,
+  description      TEXT,
+  gst_number       TEXT,
+  website          TEXT,
+  google_map_embed TEXT,
+  latitude         DOUBLE PRECISION,
+  longitude        DOUBLE PRECISION,
+  notes            TEXT,
+  is_active        BOOLEAN NOT NULL DEFAULT true,
+  kyc_status       TEXT NOT NULL DEFAULT 'pending'
+                   CHECK (kyc_status IN ('pending', 'approved', 'rejected')),
+  login_id         TEXT,
+  pass             TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_partners_active ON partners(is_active);
+CREATE INDEX IF NOT EXISTS idx_partners_kyc    ON partners(kyc_status);
+
+DROP TRIGGER IF EXISTS partners_updated_at ON partners;
+CREATE TRIGGER partners_updated_at
+  BEFORE UPDATE ON partners
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ============================================================
+-- PARTNER CATEGORIES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS partner_categories (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug       TEXT NOT NULL UNIQUE,
+  name       TEXT NOT NULL,
+  is_active  BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO partner_categories (slug, name, sort_order) VALUES
+  ('salon',          'Salon',          1),
+  ('spa',            'Spa',            2),
+  ('beauty_studio',  'Beauty Studio',  3),
+  ('freelance',      'Freelance',      4)
+ON CONFLICT (slug) DO NOTHING;
+
+-- ============================================================
+-- PARTNER KYC DETAILS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS partner_kyc_details (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id              UUID NOT NULL REFERENCES profiles(id),
-  name                  TEXT NOT NULL,
-  slug                  TEXT UNIQUE,
-  description           TEXT,
-  logo_url              TEXT,
-  cover_url             TEXT,
-  phone                 TEXT,
-  email                 TEXT,
-  address_line          TEXT,
-  city                  TEXT,
-  state                 TEXT,
-  pincode               TEXT,
-  latitude              DOUBLE PRECISION,
-  longitude             DOUBLE PRECISION,
-  location              GEOGRAPHY(POINT, 4326),
-  status                salon_status NOT NULL DEFAULT 'pending',
-  kyc_status            kyc_status NOT NULL DEFAULT 'not_submitted',
-  subscription          subscription_tier NOT NULL DEFAULT 'free',
-  subscription_expires_at TIMESTAMPTZ,
-  rating_avg            DECIMAL(3,2) NOT NULL DEFAULT 0,
-  rating_count          INT NOT NULL DEFAULT 0,
-  is_featured           BOOLEAN NOT NULL DEFAULT false,
-  home_visit_enabled    BOOLEAN NOT NULL DEFAULT false,
-  home_visit_radius_km  DECIMAL(5,2),
-  travel_fee_per_km     DECIMAL(10,2),
-  commission_rate       DECIMAL(5,2) NOT NULL DEFAULT 10.00,
+  partner_id            UUID NOT NULL UNIQUE REFERENCES partners(id) ON DELETE CASCADE,
+  property_type         TEXT CHECK (property_type IN ('own', 'lease', 'rent')),
+  pan_number            TEXT,
+  aadhaar_number        TEXT,
+  bank_account_holder   TEXT,
+  bank_name             TEXT,
+  ifsc_code             TEXT,
+  account_number        TEXT,
+  aadhaar_doc_url       TEXT,
+  pan_doc_url           TEXT,
+  agreement_doc_url     TEXT,
+  gst_doc_url           TEXT,
+  passbook_doc_url      TEXT,
+  other_doc_url         TEXT,
+  other_doc_name        TEXT,
+  submitted_at          TIMESTAMPTZ,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER salons_updated_at
-  BEFORE UPDATE ON salons
+CREATE INDEX IF NOT EXISTS idx_partner_kyc_details_partner ON partner_kyc_details(partner_id);
+
+DROP TRIGGER IF EXISTS partner_kyc_details_updated_at ON partner_kyc_details;
+CREATE TRIGGER partner_kyc_details_updated_at
+  BEFORE UPDATE ON partner_kyc_details
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-CREATE TABLE salon_kyc (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id          UUID NOT NULL REFERENCES salons(id) ON DELETE CASCADE,
-  business_name     TEXT,
-  gst_number        TEXT,
-  pan_number        TEXT,
-  id_proof_url      TEXT,
-  address_proof_url TEXT,
-  status            kyc_status NOT NULL DEFAULT 'pending',
-  reviewed_by       UUID REFERENCES profiles(id),
-  reviewed_at       TIMESTAMPTZ,
-  rejection_reason  TEXT,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- ============================================================
--- CATEGORIES & SERVICES
+-- PARTNER OTP VERIFICATIONS
 -- ============================================================
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS partner_otp_verifications (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        TEXT NOT NULL,
-  slug        TEXT UNIQUE NOT NULL,
-  icon_url    TEXT,
-  sort_order  INT NOT NULL DEFAULT 0,
-  is_active   BOOLEAN NOT NULL DEFAULT true
-);
-
-CREATE TABLE salon_categories (
-  salon_id    UUID NOT NULL REFERENCES salons(id) ON DELETE CASCADE,
-  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-  PRIMARY KEY (salon_id, category_id)
-);
-
-CREATE TABLE services (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id         UUID NOT NULL REFERENCES salons(id) ON DELETE CASCADE,
-  category_id      UUID REFERENCES categories(id),
-  name             TEXT NOT NULL,
-  description      TEXT,
-  duration_minutes INT NOT NULL,
-  price            DECIMAL(10,2) NOT NULL,
-  home_visit_price DECIMAL(10,2),
-  is_bridal        BOOLEAN NOT NULL DEFAULT false,
-  is_active        BOOLEAN NOT NULL DEFAULT true,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE salon_schedules (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id    UUID NOT NULL REFERENCES salons(id) ON DELETE CASCADE,
-  day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-  open_time   TIME NOT NULL,
-  close_time  TIME NOT NULL,
-  is_closed   BOOLEAN NOT NULL DEFAULT false
-);
-
-CREATE TABLE salon_staff (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id    UUID NOT NULL REFERENCES salons(id) ON DELETE CASCADE,
-  profile_id  UUID REFERENCES profiles(id),
-  name        TEXT NOT NULL,
-  role        TEXT,
-  is_active   BOOLEAN NOT NULL DEFAULT true
-);
-
--- ============================================================
--- BOOKINGS
--- ============================================================
-CREATE TABLE bookings (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_number      TEXT UNIQUE,
-  customer_id         UUID NOT NULL REFERENCES profiles(id),
-  salon_id            UUID NOT NULL REFERENCES salons(id),
-  staff_id            UUID REFERENCES salon_staff(id),
-  booking_type        booking_type NOT NULL,
-  status              booking_status NOT NULL DEFAULT 'pending',
-  scheduled_at        TIMESTAMPTZ NOT NULL,
-  service_total       DECIMAL(10,2) NOT NULL,
-  travel_fee          DECIMAL(10,2) NOT NULL DEFAULT 0,
-  discount_amount     DECIMAL(10,2) NOT NULL DEFAULT 0,
-  total_amount        DECIMAL(10,2) NOT NULL,
-  commission_rate     DECIMAL(5,2) NOT NULL DEFAULT 10.00,
-  commission_amount   DECIMAL(10,2),
-  salon_payout        DECIMAL(10,2),
-  payment_status      payment_status NOT NULL DEFAULT 'pending',
-  payment_id          TEXT,
-  coupon_id           UUID,
-  home_address        JSONB,
-  distance_km         DECIMAL(6,2),
-  notes               TEXT,
-  cancelled_by        UUID REFERENCES profiles(id),
-  cancellation_reason TEXT,
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TRIGGER bookings_updated_at
-  BEFORE UPDATE ON bookings
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-CREATE TABLE booking_services (
-  booking_id       UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  service_id       UUID REFERENCES services(id),
-  service_name     TEXT NOT NULL,
-  price            DECIMAL(10,2) NOT NULL,
-  duration_minutes INT NOT NULL,
-  PRIMARY KEY (booking_id, service_id)
-);
-
--- Auto booking number
-CREATE OR REPLACE FUNCTION public.generate_booking_number()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  IF NEW.booking_number IS NULL THEN
-    NEW.booking_number := 'BK-' || LPAD(nextval('booking_number_seq')::TEXT, 6, '0');
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE SEQUENCE booking_number_seq START 1000;
-
-CREATE TRIGGER bookings_set_number
-  BEFORE INSERT ON bookings
-  FOR EACH ROW EXECUTE FUNCTION public.generate_booking_number();
-
--- ============================================================
--- REELS & REVIEWS
--- ============================================================
-CREATE TABLE reels (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id          UUID NOT NULL REFERENCES salons(id) ON DELETE CASCADE,
-  video_url         TEXT NOT NULL,
-  thumbnail_url     TEXT,
-  caption           TEXT,
-  service_id        UUID REFERENCES services(id),
-  view_count        INT NOT NULL DEFAULT 0,
-  like_count        INT NOT NULL DEFAULT 0,
-  is_active         BOOLEAN NOT NULL DEFAULT true,
-  moderation_status TEXT NOT NULL DEFAULT 'pending',
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE reel_likes (
-  reel_id     UUID NOT NULL REFERENCES reels(id) ON DELETE CASCADE,
-  user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (reel_id, user_id)
-);
-
-CREATE TABLE reel_saves (
-  reel_id     UUID NOT NULL REFERENCES reels(id) ON DELETE CASCADE,
-  user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (reel_id, user_id)
-);
-
-CREATE TABLE reviews (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id  UUID UNIQUE REFERENCES bookings(id),
-  customer_id UUID NOT NULL REFERENCES profiles(id),
-  salon_id    UUID NOT NULL REFERENCES salons(id),
-  rating      INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
-  comment     TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- ============================================================
--- WALLET & COUPONS
--- ============================================================
-CREATE TABLE wallets (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL UNIQUE REFERENCES profiles(id),
-  balance     DECIMAL(10,2) NOT NULL DEFAULT 0,
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE wallet_transactions (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  wallet_id     UUID NOT NULL REFERENCES wallets(id),
-  type          transaction_type NOT NULL,
-  amount        DECIMAL(10,2) NOT NULL,
-  source        wallet_source NOT NULL,
-  reference_id  UUID,
-  description   TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE coupons (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code          TEXT NOT NULL UNIQUE,
-  type          coupon_type NOT NULL,
-  value         DECIMAL(10,2) NOT NULL,
-  min_order     DECIMAL(10,2) NOT NULL DEFAULT 0,
-  max_discount  DECIMAL(10,2),
-  usage_limit   INT,
-  used_count    INT NOT NULL DEFAULT 0,
-  valid_from    TIMESTAMPTZ,
-  valid_until   TIMESTAMPTZ,
-  salon_id      UUID REFERENCES salons(id),
-  is_active     BOOLEAN NOT NULL DEFAULT true,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- ============================================================
--- AI
--- ============================================================
-CREATE TABLE ai_usage (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         UUID NOT NULL REFERENCES profiles(id),
-  month_year      TEXT NOT NULL,
-  free_used       INT NOT NULL DEFAULT 0,
-  paid_used       INT NOT NULL DEFAULT 0,
-  ad_earned       INT NOT NULL DEFAULT 0,
-  plan_type       ai_plan_type NOT NULL DEFAULT 'free',
-  plan_expires_at TIMESTAMPTZ,
-  UNIQUE (user_id, month_year)
-);
-
-CREATE TABLE ai_analyses (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES profiles(id),
-  selfie_url  TEXT,
-  result_json JSONB,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE ai_purchases (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES profiles(id),
-  plan_type   ai_plan_type NOT NULL,
-  amount      DECIMAL(10,2) NOT NULL,
-  payment_id  TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- ============================================================
--- AFFILIATE & PROMOTIONS
--- ============================================================
-CREATE TABLE affiliate_products (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name            TEXT NOT NULL,
-  brand           TEXT,
-  category        TEXT,
-  image_url       TEXT,
-  price_display   TEXT,
-  affiliate_url   TEXT NOT NULL,
-  commission_pct  DECIMAL(5,2),
-  is_active       BOOLEAN NOT NULL DEFAULT true,
-  sort_order      INT NOT NULL DEFAULT 0,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE affiliate_clicks (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id  UUID REFERENCES affiliate_products(id),
-  user_id     UUID REFERENCES profiles(id),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE salon_subscriptions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id    UUID NOT NULL REFERENCES salons(id),
-  tier        subscription_tier NOT NULL,
-  amount      DECIMAL(10,2) NOT NULL,
-  payment_id  TEXT,
-  starts_at   TIMESTAMPTZ NOT NULL,
+  admin_id    TEXT NOT NULL,
+  phone       TEXT NOT NULL,
+  channel     TEXT NOT NULL CHECK (channel IN ('mobile', 'whatsapp', 'email', 'alternate')),
+  otp_code    TEXT NOT NULL,
+  token       UUID UNIQUE,
+  verified_at TIMESTAMPTZ,
+  consumed_at TIMESTAMPTZ,
   expires_at  TIMESTAMPTZ NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE promotions (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  salon_id      UUID REFERENCES salons(id),
-  title         TEXT NOT NULL,
-  description   TEXT,
-  banner_url    TEXT,
-  discount_pct  DECIMAL(5,2),
-  starts_at     TIMESTAMPTZ,
-  ends_at       TIMESTAMPTZ,
-  is_active     BOOLEAN NOT NULL DEFAULT true,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE INDEX IF NOT EXISTS idx_partner_otp_admin_phone_channel
+  ON partner_otp_verifications (admin_id, phone, channel, created_at DESC);
+
+-- ============================================================
+-- PARTNER SERVICES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS partner_services (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id       UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  name             TEXT NOT NULL,
+  description      TEXT,
+  price            DECIMAL(10,2),
+  duration_minutes INT,
+  is_active        BOOLEAN NOT NULL DEFAULT true,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- NOTIFICATIONS & SECURITY
--- ============================================================
-CREATE TABLE notifications (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES profiles(id),
-  title       TEXT NOT NULL,
-  body        TEXT,
-  type        TEXT,
-  data        JSONB,
-  is_read     BOOLEAN NOT NULL DEFAULT false,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE device_sessions (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         UUID NOT NULL REFERENCES profiles(id),
-  device_id       TEXT NOT NULL,
-  platform        TEXT,
-  last_active_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, device_id)
-);
-
-CREATE TABLE platform_settings (
-  key         TEXT PRIMARY KEY,
-  value       JSONB NOT NULL,
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+DROP TRIGGER IF EXISTS partner_services_updated_at ON partner_services;
+CREATE TRIGGER partner_services_updated_at
+  BEFORE UPDATE ON partner_services
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- ============================================================
--- INDEXES
+-- RPCs – ADMIN LOGIN
 -- ============================================================
-CREATE INDEX idx_profiles_role ON profiles(role);
-CREATE INDEX idx_profiles_phone ON profiles(phone);
-CREATE INDEX idx_salons_owner ON salons(owner_id);
-CREATE INDEX idx_salons_status ON salons(status) WHERE status = 'approved';
-CREATE INDEX idx_salons_location ON salons USING GIST (location);
-CREATE INDEX idx_salons_city ON salons(city);
-CREATE INDEX idx_bookings_customer ON bookings(customer_id, created_at DESC);
-CREATE INDEX idx_bookings_salon ON bookings(salon_id, scheduled_at);
-CREATE INDEX idx_bookings_status ON bookings(status);
-CREATE INDEX idx_reels_salon ON reels(salon_id, created_at DESC);
-CREATE INDEX idx_reels_feed ON reels(is_active, moderation_status, created_at DESC);
-CREATE INDEX idx_notifications_user ON notifications(user_id, created_at DESC);
-
--- ============================================================
--- ROW LEVEL SECURITY
--- ============================================================
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE salons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reels ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
--- Helper: check if current user is admin
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
+CREATE OR REPLACE FUNCTION verify_admin(login_id TEXT, login_pass TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM profiles
-    WHERE id = auth.uid() AND role = 'admin'
+DECLARE
+  admin_row admin%ROWTYPE;
+  pages     JSON;
+BEGIN
+  SELECT * INTO admin_row
+  FROM admin
+  WHERE id = login_id AND pass = login_pass;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  IF NOT admin_row.is_active THEN
+    RETURN json_build_object('error', 'deactivated');
+  END IF;
+
+  IF admin_row.role = 'super_admin' THEN
+    SELECT COALESCE(json_agg(page_key ORDER BY sort_order), '[]'::json)
+    INTO pages
+    FROM admin_pages;
+  ELSE
+    SELECT COALESCE(json_agg(a.page_key ORDER BY p.sort_order), '[]'::json)
+    INTO pages
+    FROM admin_page_access a
+    JOIN admin_pages p ON p.page_key = a.page_key
+    WHERE a.admin_id = admin_row.id;
+  END IF;
+
+  RETURN json_build_object(
+    'id',         admin_row.id,
+    'role',       admin_row.role::text,
+    'name',       admin_row.name,
+    'phone',      admin_row.phone,
+    'notes',      admin_row.notes,
+    'is_active',  admin_row.is_active,
+    'created_at', admin_row.created_at,
+    'pages',      pages
   );
+END;
 $$;
 
--- Profiles
-CREATE POLICY "Users read own profile"
-  ON profiles FOR SELECT
-  USING (auth.uid() = id OR public.is_admin());
-
-CREATE POLICY "Users update own profile"
-  ON profiles FOR UPDATE
-  USING (auth.uid() = id OR public.is_admin());
-
-CREATE POLICY "Admin manage all profiles"
-  ON profiles FOR ALL
-  USING (public.is_admin());
-
--- Salons
-CREATE POLICY "Public read approved salons"
-  ON salons FOR SELECT
-  USING (status = 'approved' OR owner_id = auth.uid() OR public.is_admin());
-
-CREATE POLICY "Owner manage own salon"
-  ON salons FOR ALL
-  USING (owner_id = auth.uid() OR public.is_admin());
-
--- Bookings
-CREATE POLICY "Customer read own bookings"
-  ON bookings FOR SELECT
-  USING (
-    customer_id = auth.uid()
-    OR salon_id IN (SELECT id FROM salons WHERE owner_id = auth.uid())
-    OR public.is_admin()
-  );
-
-CREATE POLICY "Customer create bookings"
-  ON bookings FOR INSERT
-  WITH CHECK (customer_id = auth.uid());
-
-CREATE POLICY "Salon owner update bookings"
-  ON bookings FOR UPDATE
-  USING (
-    salon_id IN (SELECT id FROM salons WHERE owner_id = auth.uid())
-    OR public.is_admin()
-  );
-
--- Reels
-CREATE POLICY "Public read approved reels"
-  ON reels FOR SELECT
-  USING (
-    (is_active = true AND moderation_status = 'approved')
-    OR salon_id IN (SELECT id FROM salons WHERE owner_id = auth.uid())
-    OR public.is_admin()
-  );
-
-CREATE POLICY "Salon owner manage reels"
-  ON reels FOR ALL
-  USING (
-    salon_id IN (SELECT id FROM salons WHERE owner_id = auth.uid())
-    OR public.is_admin()
-  );
-
--- Reviews
-CREATE POLICY "Public read reviews"
-  ON reviews FOR SELECT USING (true);
-
-CREATE POLICY "Customer create review"
-  ON reviews FOR INSERT
-  WITH CHECK (customer_id = auth.uid());
-
--- Wallets
-CREATE POLICY "User read own wallet"
-  ON wallets FOR SELECT
-  USING (user_id = auth.uid() OR public.is_admin());
-
--- Notifications
-CREATE POLICY "User read own notifications"
-  ON notifications FOR SELECT
-  USING (user_id = auth.uid() OR public.is_admin());
-
-CREATE POLICY "User update own notifications"
-  ON notifications FOR UPDATE
-  USING (user_id = auth.uid());
--- ============================================================
--- PakeUp – Seed Data
--- Run after migration
--- ============================================================
-
--- Platform settings
-INSERT INTO platform_settings (key, value) VALUES
-  ('default_commission_rate', '10'::jsonb),
-  ('free_ai_monthly', '5'::jsonb),
-  ('home_visit_commission_rate', '10'::jsonb),
-  ('bridal_commission_rate', '10'::jsonb)
-ON CONFLICT (key) DO NOTHING;
-
--- Categories
-INSERT INTO categories (name, slug, sort_order) VALUES
-  ('Hair', 'hair', 1),
-  ('Makeup', 'makeup', 2),
-  ('Nails', 'nails', 3),
-  ('Skincare', 'skincare', 4),
-  ('Spa', 'spa', 5),
-  ('Bridal', 'bridal', 6),
-  ('Men''s Grooming', 'mens-grooming', 7)
-ON CONFLICT (slug) DO NOTHING;
-
--- Sample coupons
-INSERT INTO coupons (code, type, value, min_order, usage_limit, valid_until) VALUES
-  ('WELCOME50', 'flat', 50, 200, 1000, now() + interval '1 year'),
-  ('BEAUTY10', 'percentage', 10, 500, 500, now() + interval '6 months')
-ON CONFLICT (code) DO NOTHING;
-
--- Sample affiliate products
-INSERT INTO affiliate_products (name, brand, category, price_display, affiliate_url, sort_order) VALUES
-  ('Matte Lipstick', 'Lakme', 'makeup', '₹499', 'https://example.com/lipstick', 1),
-  ('Hair Serum', 'L''Oreal', 'hair', '₹699', 'https://example.com/serum', 2),
-  ('Face Wash', 'Cetaphil', 'skincare', '₹399', 'https://example.com/facewash', 3);
+GRANT EXECUTE ON FUNCTION verify_admin(TEXT, TEXT) TO anon, authenticated, service_role;
 
 -- ============================================================
--- CREATE ADMIN USER (run AFTER creating user in Supabase Auth)
--- Step 1: Dashboard → Authentication → Add user
---   Email: admin@pakeup.com
---   Password: admin123
--- Step 2: Run this (replace UUID with actual auth.users id):
+-- RPCs – ADMIN PROFILE
 -- ============================================================
---
--- UPDATE profiles
--- SET role = 'admin', full_name = 'Super Admin', email = 'admin@pakeup.com'
--- WHERE id = 'YOUR-ADMIN-USER-UUID-HERE';
---
+CREATE OR REPLACE FUNCTION get_admin_profile(caller_id TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  admin_row admin%ROWTYPE;
+  pages     JSON;
+BEGIN
+  SELECT * INTO admin_row FROM admin WHERE id = caller_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Admin account not found';
+  END IF;
+
+  IF admin_row.role = 'super_admin' THEN
+    SELECT COALESCE(json_agg(page_key ORDER BY sort_order), '[]'::json)
+    INTO pages FROM admin_pages;
+  ELSE
+    SELECT COALESCE(json_agg(a.page_key ORDER BY p.sort_order), '[]'::json)
+    INTO pages
+    FROM admin_page_access a
+    JOIN admin_pages p ON p.page_key = a.page_key
+    WHERE a.admin_id = admin_row.id;
+  END IF;
+
+  RETURN json_build_object(
+    'id',         admin_row.id,
+    'role',       admin_row.role::text,
+    'name',       admin_row.name,
+    'phone',      admin_row.phone,
+    'notes',      admin_row.notes,
+    'is_active',  admin_row.is_active,
+    'created_at', admin_row.created_at,
+    'pages',      pages
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_admin_profile(TEXT) TO anon, authenticated, service_role;
+
+-- ============================================================
+-- RPCs – ADMIN USER MANAGEMENT
+-- ============================================================
+CREATE OR REPLACE FUNCTION list_admin_users(caller_id TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM admin WHERE id = caller_id AND role = 'super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Only Super Admin can view admin users';
+  END IF;
+
+  RETURN (
+    SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+    FROM (
+      SELECT
+        a.id,
+        a.role::text AS role,
+        a.name,
+        a.phone,
+        a.notes,
+        a.is_active,
+        a.created_at,
+        COALESCE(
+          (
+            SELECT json_agg(ap.page_key ORDER BY p.sort_order)
+            FROM admin_page_access ap
+            JOIN admin_pages p ON p.page_key = ap.page_key
+            WHERE ap.admin_id = a.id
+          ),
+          '[]'::json
+        ) AS pages
+      FROM admin a
+      ORDER BY a.role DESC, a.id
+    ) t
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION create_admin_user(
+  caller_id   TEXT,
+  new_id      TEXT,
+  new_pass    TEXT,
+  page_keys   TEXT[],
+  admin_name  TEXT DEFAULT NULL,
+  admin_phone TEXT DEFAULT NULL,
+  admin_notes TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM admin WHERE id = caller_id AND role = 'super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Only Super Admin can create admins';
+  END IF;
+
+  IF new_id IS NULL OR trim(new_id) = '' THEN
+    RAISE EXCEPTION 'Admin ID is required';
+  END IF;
+
+  IF new_pass IS NULL OR length(new_pass) < 4 THEN
+    RAISE EXCEPTION 'Password must be at least 4 characters';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM admin WHERE id = new_id) THEN
+    RAISE EXCEPTION 'Admin ID already exists';
+  END IF;
+
+  INSERT INTO admin (id, pass, role, name, phone, notes)
+  VALUES (
+    new_id, new_pass, 'admin',
+    NULLIF(trim(admin_name), ''),
+    NULLIF(trim(admin_phone), ''),
+    NULLIF(trim(admin_notes), '')
+  );
+
+  INSERT INTO admin_page_access (admin_id, page_key)
+  SELECT new_id, pk
+  FROM unnest(page_keys) AS pk
+  WHERE pk IN (SELECT page_key FROM admin_pages WHERE page_key != 'manage_admins');
+
+  RETURN json_build_object('id', new_id, 'role', 'admin');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION update_admin_user(
+  caller_id   TEXT,
+  target_id   TEXT,
+  page_keys   TEXT[],
+  admin_name  TEXT DEFAULT NULL,
+  admin_phone TEXT DEFAULT NULL,
+  admin_notes TEXT DEFAULT NULL,
+  new_id      TEXT DEFAULT NULL,
+  new_pass    TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_final_id TEXT;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM admin WHERE id = caller_id AND role = 'super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Only Super Admin can update admins';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM admin WHERE id = target_id AND role = 'admin') THEN
+    RAISE EXCEPTION 'Can only update regular admin accounts';
+  END IF;
+
+  v_final_id := COALESCE(NULLIF(trim(new_id), ''), target_id);
+
+  IF v_final_id <> target_id THEN
+    IF EXISTS (SELECT 1 FROM admin WHERE id = v_final_id) THEN
+      RAISE EXCEPTION 'Admin ID already exists';
+    END IF;
+  END IF;
+
+  IF new_pass IS NOT NULL AND trim(new_pass) <> '' AND length(trim(new_pass)) < 4 THEN
+    RAISE EXCEPTION 'Password must be at least 4 characters';
+  END IF;
+
+  UPDATE admin
+  SET
+    id    = v_final_id,
+    name  = NULLIF(trim(admin_name), ''),
+    phone = NULLIF(trim(admin_phone), ''),
+    notes = NULLIF(trim(admin_notes), ''),
+    pass  = CASE
+      WHEN new_pass IS NOT NULL AND trim(new_pass) <> '' THEN trim(new_pass)
+      ELSE pass
+    END
+  WHERE id = target_id;
+
+  DELETE FROM admin_page_access WHERE admin_id = v_final_id;
+
+  INSERT INTO admin_page_access (admin_id, page_key)
+  SELECT v_final_id, pk
+  FROM unnest(page_keys) AS pk
+  WHERE pk IN (SELECT page_key FROM admin_pages WHERE page_key != 'manage_admins');
+
+  RETURN json_build_object('id', v_final_id, 'updated', true);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION delete_admin_user(caller_id TEXT, target_id TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM admin WHERE id = caller_id AND role = 'super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Only Super Admin can delete admins';
+  END IF;
+
+  IF target_id = caller_id THEN
+    RAISE EXCEPTION 'Cannot delete your own account';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM admin WHERE id = target_id AND role = 'super_admin') THEN
+    RAISE EXCEPTION 'Cannot delete Super Admin accounts';
+  END IF;
+
+  DELETE FROM admin WHERE id = target_id AND role = 'admin';
+
+  RETURN json_build_object('deleted', target_id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION set_admin_active(
+  caller_id TEXT,
+  target_id TEXT,
+  active    BOOLEAN
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM admin WHERE id = caller_id AND role = 'super_admin'
+  ) THEN
+    RAISE EXCEPTION 'Only Super Admin can change admin status';
+  END IF;
+
+  IF caller_id = target_id THEN
+    RAISE EXCEPTION 'You cannot change your own account status';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM admin WHERE id = target_id AND role = 'admin') THEN
+    RAISE EXCEPTION 'Can only change status for regular admin accounts';
+  END IF;
+
+  UPDATE admin SET is_active = active WHERE id = target_id AND role = 'admin';
+
+  RETURN json_build_object('id', target_id, 'is_active', active);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION list_admin_pages()
+RETURNS JSON
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(json_agg(json_build_object(
+    'page_key',   page_key,
+    'label',      label,
+    'sort_order', sort_order
+  ) ORDER BY sort_order), '[]'::json)
+  FROM admin_pages
+  WHERE page_key != 'manage_admins';
+$$;
+
+GRANT EXECUTE ON FUNCTION list_admin_users(TEXT)                             TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION create_admin_user(TEXT, TEXT, TEXT, TEXT[], TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION update_admin_user(TEXT, TEXT, TEXT[], TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION delete_admin_user(TEXT, TEXT)                      TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION set_admin_active(TEXT, TEXT, BOOLEAN)              TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION list_admin_pages()                                 TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION get_admin_profile(TEXT)                            TO anon, authenticated, service_role;
+
+-- ============================================================
+-- RPCs – PARTNER ACCESS GUARD
+-- ============================================================
+CREATE OR REPLACE FUNCTION assert_admin_partner_access(caller_id TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM admin a
+    WHERE a.id = caller_id
+      AND a.is_active
+      AND (
+        a.role = 'super_admin'
+        OR EXISTS (
+          SELECT 1 FROM admin_page_access apa
+          WHERE apa.admin_id = a.id
+            AND apa.page_key IN (
+              'add_partners', 'partner_kyc', 'partner_services', 'partner_categories', 'partner_accounts'
+            )
+        )
+      )
+  ) THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION assert_admin_partner_access(TEXT) TO anon, authenticated, service_role;
+
+-- ============================================================
+-- RPCs – PARTNER ACCOUNTS LIST (RECENT TOP)
+-- ============================================================
+CREATE OR REPLACE FUNCTION list_partner_accounts(caller_id TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  RETURN (
+    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.created_at DESC), '[]'::json)
+    FROM (
+      SELECT
+        a.id,
+        a.owner_name,
+        a.phone,
+        a.email,
+        a.whatsapp,
+        a.alternate_phone,
+        a.login_id,
+        (a.pass IS NOT NULL AND trim(a.pass) <> '') AS has_password,
+        a.is_active,
+        (
+          SELECT count(*)::int
+          FROM partners p
+          WHERE p.account_id = a.id
+        ) AS store_count,
+        a.created_at
+      FROM partner_accounts a
+    ) t
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION list_partner_accounts(TEXT) TO anon, authenticated, service_role;
+
+-- ============================================================
+-- RPCs – PARTNERS CRUD
+-- ============================================================
+CREATE OR REPLACE FUNCTION list_partners(caller_id TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  RETURN (
+    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.created_at DESC), '[]'::json)
+    FROM (
+      SELECT
+        p.id,
+        p.account_id,
+        p.business_name,
+        p.owner_name,
+        p.phone,
+        p.email,
+        p.whatsapp,
+        p.alternate_phone,
+        p.city,
+        p.state,
+        p.pincode,
+        p.category,
+        COALESCE(pc.name, p.category) AS category_name,
+        p.address_line,
+        p.description,
+        p.gst_number,
+        p.website,
+        p.google_map_embed,
+        p.latitude,
+        p.longitude,
+        p.notes,
+        p.is_active,
+        p.kyc_status,
+        p.created_at
+      FROM partners p
+      LEFT JOIN partner_categories pc ON pc.slug = p.category
+    ) t
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION create_partner(
+  caller_id        TEXT,
+  business_name    TEXT,
+  owner_name       TEXT,
+  phone            TEXT DEFAULT NULL,
+  email            TEXT DEFAULT NULL,
+  whatsapp         TEXT DEFAULT NULL,
+  alternate_phone  TEXT DEFAULT NULL,
+  city             TEXT DEFAULT NULL,
+  state            TEXT DEFAULT NULL,
+  pincode          TEXT DEFAULT NULL,
+  category         TEXT DEFAULT 'salon',
+  address_line     TEXT DEFAULT NULL,
+  description      TEXT DEFAULT NULL,
+  gst_number       TEXT DEFAULT NULL,
+  website          TEXT DEFAULT NULL,
+  google_map_embed TEXT DEFAULT NULL,
+  latitude         DOUBLE PRECISION DEFAULT NULL,
+  longitude        DOUBLE PRECISION DEFAULT NULL,
+  notes            TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_row partners%ROWTYPE;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  IF trim(business_name) = '' OR trim(owner_name) = '' THEN
+    RAISE EXCEPTION 'Business name and owner name are required';
+  END IF;
+
+  INSERT INTO partners (
+    business_name, owner_name, phone, email, whatsapp, alternate_phone,
+    city, state, pincode, category, address_line, description,
+    gst_number, website, google_map_embed, latitude, longitude, notes
+  ) VALUES (
+    trim(business_name),
+    trim(owner_name),
+    nullif(trim(phone), ''),
+    nullif(trim(email), ''),
+    nullif(trim(whatsapp), ''),
+    nullif(trim(alternate_phone), ''),
+    nullif(trim(city), ''),
+    nullif(trim(state), ''),
+    nullif(trim(pincode), ''),
+    coalesce(nullif(trim(category), ''), 'salon'),
+    nullif(trim(address_line), ''),
+    nullif(trim(description), ''),
+    nullif(trim(gst_number), ''),
+    nullif(trim(website), ''),
+    nullif(trim(google_map_embed), ''),
+    create_partner.latitude,
+    create_partner.longitude,
+    nullif(trim(notes), '')
+  )
+  RETURNING * INTO new_row;
+
+  RETURN row_to_json(new_row);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION update_partner(
+  caller_id        TEXT,
+  partner_id       UUID,
+  business_name    TEXT,
+  owner_name       TEXT,
+  phone            TEXT DEFAULT NULL,
+  email            TEXT DEFAULT NULL,
+  whatsapp         TEXT DEFAULT NULL,
+  alternate_phone  TEXT DEFAULT NULL,
+  city             TEXT DEFAULT NULL,
+  state            TEXT DEFAULT NULL,
+  pincode          TEXT DEFAULT NULL,
+  category         TEXT DEFAULT 'salon',
+  address_line     TEXT DEFAULT NULL,
+  description      TEXT DEFAULT NULL,
+  gst_number       TEXT DEFAULT NULL,
+  website          TEXT DEFAULT NULL,
+  google_map_embed TEXT DEFAULT NULL,
+  latitude         DOUBLE PRECISION DEFAULT NULL,
+  longitude        DOUBLE PRECISION DEFAULT NULL,
+  notes            TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  updated_row partners%ROWTYPE;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  IF trim(business_name) = '' OR trim(owner_name) = '' THEN
+    RAISE EXCEPTION 'Business name and owner name are required';
+  END IF;
+
+  UPDATE partners SET
+    business_name    = trim(business_name),
+    owner_name       = trim(owner_name),
+    phone            = nullif(trim(phone), ''),
+    email            = nullif(trim(email), ''),
+    whatsapp         = nullif(trim(whatsapp), ''),
+    alternate_phone  = nullif(trim(alternate_phone), ''),
+    city             = nullif(trim(city), ''),
+    state            = nullif(trim(state), ''),
+    pincode          = nullif(trim(pincode), ''),
+    category         = coalesce(nullif(trim(category), ''), 'salon'),
+    address_line     = nullif(trim(address_line), ''),
+    description      = nullif(trim(description), ''),
+    gst_number       = nullif(trim(gst_number), ''),
+    website          = nullif(trim(website), ''),
+    google_map_embed = nullif(trim(google_map_embed), ''),
+    latitude         = update_partner.latitude,
+    longitude        = update_partner.longitude,
+    notes            = nullif(trim(notes), '')
+  WHERE id = partner_id
+  RETURNING * INTO updated_row;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partner not found';
+  END IF;
+
+  RETURN row_to_json(updated_row);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION delete_partner(caller_id TEXT, partner_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+  DELETE FROM partners WHERE id = partner_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partner not found';
+  END IF;
+  RETURN json_build_object('deleted', true);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION set_partner_active(
+  caller_id  TEXT,
+  partner_id UUID,
+  active     BOOLEAN
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  updated_row partners%ROWTYPE;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+  UPDATE partners SET is_active = active WHERE id = partner_id RETURNING * INTO updated_row;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partner not found';
+  END IF;
+  RETURN row_to_json(updated_row);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION list_partners(TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION create_partner(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION update_partner(TEXT, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION delete_partner(TEXT, UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION set_partner_active(TEXT, UUID, BOOLEAN) TO anon, authenticated, service_role;
+
+-- ============================================================
+-- RPCs – PARTNER CATEGORIES
+-- ============================================================
+CREATE OR REPLACE FUNCTION list_partner_categories(caller_id TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  RETURN (
+    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.sort_order, t.name), '[]'::json)
+    FROM (
+      SELECT id, slug, name, is_active, sort_order, created_at
+      FROM partner_categories
+    ) t
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION create_partner_category(
+  caller_id TEXT,
+  cat_name  TEXT,
+  cat_slug  TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_row    partner_categories%ROWTYPE;
+  final_slug TEXT;
+  next_order INT;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  IF trim(cat_name) = '' THEN
+    RAISE EXCEPTION 'Category name is required';
+  END IF;
+
+  final_slug := coalesce(
+    nullif(trim(lower(cat_slug)), ''),
+    lower(regexp_replace(trim(cat_name), '[^a-zA-Z0-9]+', '_', 'g'))
+  );
+
+  SELECT coalesce(max(sort_order), 0) + 1 INTO next_order FROM partner_categories;
+
+  INSERT INTO partner_categories (slug, name, sort_order)
+  VALUES (final_slug, trim(cat_name), next_order)
+  RETURNING * INTO new_row;
+
+  RETURN row_to_json(new_row);
+EXCEPTION
+  WHEN unique_violation THEN
+    RAISE EXCEPTION 'Category slug already exists';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION update_partner_category(
+  caller_id   TEXT,
+  category_id UUID,
+  cat_name    TEXT,
+  cat_slug    TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  updated_row partner_categories%ROWTYPE;
+  old_slug    TEXT;
+  final_slug  TEXT;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  IF trim(cat_name) = '' THEN RAISE EXCEPTION 'Category name is required'; END IF;
+
+  SELECT slug INTO old_slug FROM partner_categories WHERE id = category_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Category not found'; END IF;
+
+  final_slug := coalesce(
+    nullif(trim(lower(cat_slug)), ''),
+    lower(regexp_replace(trim(cat_name), '[^a-zA-Z0-9]+', '_', 'g'))
+  );
+
+  UPDATE partner_categories SET name = trim(cat_name), slug = final_slug
+  WHERE id = category_id
+  RETURNING * INTO updated_row;
+
+  UPDATE partners SET category = final_slug WHERE category = old_slug;
+
+  RETURN row_to_json(updated_row);
+EXCEPTION
+  WHEN unique_violation THEN RAISE EXCEPTION 'Category slug already exists';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION delete_partner_category(caller_id TEXT, category_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  cat_slug    TEXT;
+  usage_count INT;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  SELECT slug INTO cat_slug FROM partner_categories WHERE id = category_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Category not found'; END IF;
+
+  SELECT count(*) INTO usage_count FROM partners WHERE category = cat_slug;
+  IF usage_count > 0 THEN
+    RAISE EXCEPTION 'Cannot delete — % partner(s) use this category', usage_count;
+  END IF;
+
+  DELETE FROM partner_categories WHERE id = category_id;
+
+  RETURN json_build_object('deleted', true);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION set_partner_category_active(
+  caller_id   TEXT,
+  category_id UUID,
+  active      BOOLEAN
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  updated_row partner_categories%ROWTYPE;
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+  UPDATE partner_categories SET is_active = active WHERE id = category_id RETURNING * INTO updated_row;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Category not found'; END IF;
+  RETURN row_to_json(updated_row);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION list_partner_categories(TEXT)              TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION create_partner_category(TEXT, TEXT, TEXT)  TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION update_partner_category(TEXT, UUID, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION delete_partner_category(TEXT, UUID)        TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION set_partner_category_active(TEXT, UUID, BOOLEAN) TO anon, authenticated, service_role;

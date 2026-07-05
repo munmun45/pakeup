@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../providers/partner_table_focus_provider.dart';
 import '../utils/partner_navigation.dart';
 import 'partner_table_widgets.dart';
+import '../../../core/providers/header_search_provider.dart';
 
 class PartnerHubNavHeaders extends StatelessWidget {
   const PartnerHubNavHeaders({super.key});
@@ -188,6 +189,7 @@ class PartnerFocusBanner extends ConsumerWidget {
             onPressed: () {
               ref.read(partnerAccountStoreFilterProvider.notifier).state = null;
               ref.read(partnerTableFocusProvider.notifier).state = null;
+              ref.read(headerSearchQueryProvider.notifier).state = '';
             },
             child: const Text('Show all'),
           ),

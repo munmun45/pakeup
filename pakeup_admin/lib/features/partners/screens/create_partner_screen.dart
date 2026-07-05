@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/providers/header_search_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -8,6 +10,7 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
 import '../providers/partners_provider.dart';
+import '../providers/partner_table_focus_provider.dart';
 import '../widgets/partner_parent_account_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
 import '../widgets/partner_table_widgets.dart';
@@ -19,6 +22,7 @@ class CreatePartnerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(partnerOwnerAccountsListProvider);
+    final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
     final searchQuery =
         ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
@@ -55,9 +59,14 @@ class CreatePartnerScreen extends ConsumerWidget {
           data: (accounts) {
             final activeCount = accounts.where((a) => a.isActive).length;
             final inactiveCount = accounts.length - activeCount;
+            
+            final filteredByAccount = accountFilter != null
+                ? accounts.where((a) => a.id == accountFilter.accountId).toList()
+                : accounts;
+
             final filtered = searchQuery.isEmpty
-                ? accounts
-                : accounts.where((a) {
+                ? filteredByAccount
+                : filteredByAccount.where((a) {
                     final q = searchQuery;
                     return a.ownerName.toLowerCase().contains(q) ||
                         (a.phone?.toLowerCase().contains(q) ?? false) ||
@@ -284,7 +293,7 @@ class _PartnerAccountsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const minWidth = 980.0;
+        const minWidth = 1130.0;
         final table = Card(
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -301,34 +310,40 @@ class _PartnerAccountsTable extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 160,
                       child: Text('OWNER', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
+                    _buildDivider(),
+                    const SizedBox(
                       width: 110,
                       child: Text('PHONE', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
+                    _buildDivider(),
+                    const SizedBox(
                       width: 150,
                       child: Text('EMAIL', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
+                    _buildDivider(),
+                    const SizedBox(
                       width: 110,
                       child: Text('WHATSAPP', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
+                    _buildDivider(),
+                    const SizedBox(
                       width: 70,
                       child: Text('STORES', style: partnerTableHeaderStyle),
                     ),
-                    SizedBox(
+                    _buildDivider(),
+                    const SizedBox(
                       width: 82,
                       child: Text('STATUS', style: partnerTableHeaderStyle),
                     ),
-                    Spacer(),
-                    SizedBox(
+                    const Spacer(),
+                    _buildDivider(),
+                    const SizedBox(
                       width: 168,
                       child: Text(
                         'ACTIONS',
@@ -362,6 +377,95 @@ class _PartnerAccountsTable extends StatelessWidget {
       },
     );
   }
+}
+
+Widget _buildDivider() {
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    width: 1,
+    height: 20,
+    color: AppColors.border.withValues(alpha: 0.6),
+  );
+}
+
+Widget _buildContactColumn({
+  required BuildContext context,
+  required double width,
+  required String? value,
+  required String type, // 'phone' | 'email' | 'whatsapp'
+}) {
+  if (value == null || value.trim().isEmpty) {
+    return SizedBox(
+      width: width,
+      child: const Text(
+        '—',
+        style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+      ),
+    );
+  }
+
+  return SizedBox(
+    width: width,
+    child: InkWell(
+      onTap: () async {
+        // 1. Copy to clipboard
+        await Clipboard.setData(ClipboardData(text: value));
+
+        // 2. Determine Action URL
+        try {
+          Uri uri;
+          String typeName;
+          if (type == 'phone') {
+            final cleanPhone = value.replaceAll(RegExp(r'[^\d+]'), '');
+            uri = Uri.parse('tel:$cleanPhone');
+            typeName = 'phone call';
+          } else if (type == 'email') {
+            uri = Uri.parse('mailto:$value');
+            typeName = 'email client';
+          } else {
+            final cleanPhone = value.replaceAll(RegExp(r'[^\d]'), '');
+            uri = Uri.parse('https://wa.me/$cleanPhone');
+            typeName = 'WhatsApp';
+          }
+
+          // 3. Launch URL
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+            if (context.mounted) {
+              AppSnackBar.success(context, 'Copied & opening $typeName');
+            }
+          } else {
+            if (context.mounted) {
+              AppSnackBar.success(context, 'Copied: $value (Could not open launcher)');
+            }
+          }
+        } catch (e) {
+          if (context.mounted) {
+            AppSnackBar.success(context, 'Copied: $value');
+          }
+        }
+      },
+      child: Tooltip(
+        message: type == 'phone'
+            ? 'Click to copy & call'
+            : type == 'email'
+                ? 'Click to copy & email'
+                : 'Click to copy & WhatsApp',
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _PartnerAccountRow extends StatelessWidget {
@@ -416,53 +520,67 @@ class _PartnerAccountRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      account.ownerName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          account.ownerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Tooltip(
+                          message: 'Click to copy ID: ${account.id}',
+                          child: InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: account.id));
+                              AppSnackBar.success(context, 'Copied ID: ${account.id}');
+                            },
+                            child: Text(
+                              'ID: ${account.id}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontFamily: 'monospace',
+                                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(
+            _buildDivider(),
+            _buildContactColumn(
+              context: context,
               width: 110,
-              child: Text(
-                account.phone?.trim().isNotEmpty == true ? account.phone! : '—',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12.5),
-              ),
+              value: account.phone,
+              type: 'phone',
             ),
-            SizedBox(
+            _buildDivider(),
+            _buildContactColumn(
+              context: context,
               width: 150,
-              child: Text(
-                account.email?.trim().isNotEmpty == true ? account.email! : '—',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: account.email?.trim().isNotEmpty == true
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
-                ),
-              ),
+              value: account.email,
+              type: 'email',
             ),
-            SizedBox(
+            _buildDivider(),
+            _buildContactColumn(
+              context: context,
               width: 110,
-              child: Text(
-                account.whatsapp?.trim().isNotEmpty == true
-                    ? account.whatsapp!
-                    : '—',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12.5),
-              ),
+              value: account.whatsapp,
+              type: 'whatsapp',
             ),
+            _buildDivider(),
             SizedBox(
               width: 70,
               child: Text(
@@ -476,6 +594,7 @@ class _PartnerAccountRow extends StatelessWidget {
                 ),
               ),
             ),
+            _buildDivider(),
             SizedBox(
               width: 82,
               child: FittedBox(
@@ -485,6 +604,7 @@ class _PartnerAccountRow extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            _buildDivider(),
             SizedBox(
               width: 168,
               child: Row(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/partner_table_focus_provider.dart';
 import '../data/partners_repository.dart';
+import '../../../core/providers/header_search_provider.dart';
 
 enum PartnerHubPage { kyc, account, service }
 
@@ -62,6 +63,7 @@ class PartnerNavigation {
       ownerName: account.ownerName,
       storeCount: account.storeCount,
     );
+    ref.read(headerSearchQueryProvider.notifier).state = account.ownerName;
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) context.go('/partners/add');
@@ -71,6 +73,7 @@ class PartnerNavigation {
   static void clearFocus(WidgetRef ref) {
     ref.read(partnerTableFocusProvider.notifier).state = null;
     ref.read(partnerAccountStoreFilterProvider.notifier).state = null;
+    ref.read(headerSearchQueryProvider.notifier).state = '';
   }
 
   static void openPartnerRoute(

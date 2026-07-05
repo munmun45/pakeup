@@ -11,6 +11,8 @@ import '../../../core/widgets/smooth_scroll_behavior.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import 'header_search_bar.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../partners/providers/partner_table_focus_provider.dart';
+import '../../../core/providers/header_search_provider.dart';
 
 class AdminShell extends ConsumerWidget {
   const AdminShell({
@@ -27,12 +29,25 @@ class AdminShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).valueOrNull;
-    final menuGroups = user == null
+    final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+    var menuGroups = user == null
         ? <({AdminMenuGroup group, List<AdminPageDef> pages})>[]
         : AdminPages.groupedForUser(
             isSuperAdmin: user.isSuperAdmin,
             pageKeys: user.pages,
           );
+
+    if (accountFilter != null) {
+      menuGroups = menuGroups
+          .map((group) {
+            final filteredPages = group.pages
+                .where((p) => p.group == 'partners' || p.key == 'dashboard')
+                .toList();
+            return (group: group.group, pages: filteredPages);
+          })
+          .where((group) => group.pages.isNotEmpty)
+          .toList();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -211,16 +226,72 @@ class AdminShell extends ConsumerWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                  fontSize: 22,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                title,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary,
+                                      fontSize: 22,
+                                    ),
+                              ),
+                              if (accountFilter != null) ...[
+                                const SizedBox(width: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.filter_alt_outlined,
+                                        size: 14,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        accountFilter.ownerName,
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      GestureDetector(
+                                        onTap: () {
+                                          ref.read(partnerAccountStoreFilterProvider.notifier).state = null;
+                                          ref.read(partnerTableFocusProvider.notifier).state = null;
+                                          ref.read(headerSearchQueryProvider.notifier).state = '';
+                                        },
+                                        child: const MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          child: Icon(
+                                            Icons.close_rounded,
+                                            size: 14,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(

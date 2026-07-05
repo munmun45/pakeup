@@ -62,11 +62,20 @@ class PartnerKycScreen extends ConsumerWidget {
             ),
           ),
           data: (rows) {
-            final visible = filterByPartnerFocus(
-              rows,
-              focus,
-              (r) => r.partnerId,
-            );
+            final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+            final partners = ref.watch(partnersListProvider).valueOrNull ?? [];
+            final visible = rows.where((r) {
+              if (focus != null && r.partnerId != focus.partnerId) return false;
+              if (accountFilter != null) {
+                final partner = partners.firstWhere(
+                  (p) => p.id == r.partnerId,
+                  orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
+                );
+                if (partner.accountId != accountFilter.accountId) return false;
+              }
+              return true;
+            }).toList();
+
             final pending =
                 visible.where((p) => p.kycStatus == 'pending').length;
             final approved =

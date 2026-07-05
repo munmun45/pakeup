@@ -9,6 +9,7 @@ import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
 import '../providers/partner_table_focus_provider.dart';
+import '../providers/partners_provider.dart';
 import '../utils/partner_navigation.dart';
 import '../widgets/account_passbook_column.dart';
 import '../widgets/partner_account_view_dialog.dart';
@@ -50,11 +51,20 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
             ),
           ),
           data: (accounts) {
-            final visible = filterByPartnerFocus(
-              accounts,
-              focus,
-              (a) => a.partnerId,
-            );
+            final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+            final partners = ref.watch(partnersListProvider).valueOrNull ?? [];
+            final visible = accounts.where((a) {
+              if (focus != null && a.partnerId != focus.partnerId) return false;
+              if (accountFilter != null) {
+                final partner = partners.firstWhere(
+                  (p) => p.id == a.partnerId,
+                  orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
+                );
+                if (partner.accountId != accountFilter.accountId) return false;
+              }
+              return true;
+            }).toList();
+
             final approved =
                 visible.where((a) => a.accountStatus == 'approved').length;
             final pending =

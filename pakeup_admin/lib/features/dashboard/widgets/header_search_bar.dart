@@ -47,7 +47,11 @@ class _HeaderSearchBarState extends ConsumerState<HeaderSearchBar> {
 
   void _clearSearch() {
     _controller.clear();
-    ref.read(headerSearchQueryProvider.notifier).state = '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(headerSearchQueryProvider.notifier).state = '';
+      }
+    });
     _focusNode.unfocus();
   }
 
@@ -71,6 +75,10 @@ class _HeaderSearchBarState extends ConsumerState<HeaderSearchBar> {
   @override
   Widget build(BuildContext context) {
     final focused = _focusNode.hasFocus;
+    final query = ref.watch(headerSearchQueryProvider);
+    if (_controller.text != query) {
+      _controller.text = query;
+    }
     final hasText = _controller.text.isNotEmpty;
 
     return CallbackShortcuts(
