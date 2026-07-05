@@ -29,26 +29,6 @@ class PartnerServicesScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionHeader(
-          icon: Icons.spa_rounded,
-          title: 'Partner Services',
-          subtitle:
-              'Manage service menus and pricing for onboarded partners — catalog control like Zomato menus.',
-          action: OutlinedButton.icon(
-            onPressed: () => _openForm(context, ref),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Add Service'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
         const PartnerFocusBanner(),
         servicesAsync.when(
           loading: () => const Center(
@@ -86,35 +66,56 @@ class PartnerServicesScreen extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                PartnerStatsRow(
-                  chips: [
-                    PartnerStatChip(
-                      icon: Icons.miscellaneous_services_rounded,
-                      label: 'Total Services',
-                      value: '${visible.length}',
-                      color: AppColors.primary,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: PartnerStatsRow(
+                        chips: [
+                          PartnerStatChip(
+                            icon: Icons.miscellaneous_services_rounded,
+                            label: 'Total Services',
+                            value: '${visible.length}',
+                            color: AppColors.primary,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.visibility_rounded,
+                            label: 'Active',
+                            value: '$activeCount',
+                            color: AppColors.success,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.visibility_off_outlined,
+                            label: 'Inactive',
+                            value: '$inactiveCount',
+                            color: AppColors.warning,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.storefront_outlined,
+                            label: 'Partners count',
+                            value: '$partnerCount',
+                            color: AppColors.secondary,
+                          ),
+                        ],
+                      ),
                     ),
-                    PartnerStatChip(
-                      icon: Icons.visibility_rounded,
-                      label: 'Active',
-                      value: '$activeCount',
-                      color: AppColors.success,
-                    ),
-                    PartnerStatChip(
-                      icon: Icons.visibility_off_outlined,
-                      label: 'Inactive',
-                      value: '$inactiveCount',
-                      color: AppColors.warning,
-                    ),
-                    PartnerStatChip(
-                      icon: Icons.storefront_outlined,
-                      label: 'Partners',
-                      value: '$partnerCount',
-                      color: AppColors.textSecondary,
+                    const SizedBox(width: 24),
+                    OutlinedButton.icon(
+                      onPressed: () => _openForm(context, ref),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add Service'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 partnersAsync.when(
                   loading: () => const SizedBox.shrink(),
                   error: (e, _) => const SizedBox.shrink(),

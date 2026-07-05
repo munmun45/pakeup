@@ -29,13 +29,6 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(
-          icon: Icons.account_balance_wallet_rounded,
-          title: 'Manage Accounts',
-          subtitle:
-              'Add and update partner bank account details and passbook documents.',
-        ),
-        const SizedBox(height: 24),
         const PartnerFocusBanner(),
         accountsAsync.when(
           loading: () => const Center(

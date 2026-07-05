@@ -19,40 +19,50 @@ class PartnerStatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 22, color: color),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                     height: 1.1,
                   ),
                 ),
+                const SizedBox(height: 3),
                 Text(
                   label,
                   style: const TextStyle(
                     fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -76,7 +86,8 @@ class PartnerStatsRow extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final columns = width >= 960 ? 3 : width >= 520 ? 2 : 1;
-        final chipWidth = (width - 12 * (columns - 1)) / columns;
+        final rawChipWidth = (width - 12 * (columns - 1)) / columns;
+        final chipWidth = rawChipWidth > 280.0 ? 280.0 : rawChipWidth;
 
         return Wrap(
           spacing: 12,

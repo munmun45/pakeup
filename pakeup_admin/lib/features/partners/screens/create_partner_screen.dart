@@ -29,25 +29,6 @@ class CreatePartnerScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionHeader(
-          icon: Icons.person_add_alt_1_rounded,
-          title: 'Create Partner',
-          subtitle:
-              'Manage parent login accounts. Add individual stores from Add Stores.',
-          action: FilledButton.icon(
-            onPressed: () => _openCreateDialog(context, ref),
-            icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-            label: const Text('Create Partner'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
         accountsAsync.when(
           loading: () => const Center(
             child: Padding(
@@ -77,29 +58,49 @@ class CreatePartnerScreen extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                PartnerStatsRow(
-                  chips: [
-                    PartnerStatChip(
-                      icon: Icons.groups_rounded,
-                      label: 'Total Partners',
-                      value: '${accounts.length}',
-                      color: AppColors.secondary,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: PartnerStatsRow(
+                        chips: [
+                          PartnerStatChip(
+                            icon: Icons.groups_rounded,
+                            label: 'Total Partners',
+                            value: '${accounts.length}',
+                            color: AppColors.secondary,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.check_circle_outline,
+                            label: 'Active',
+                            value: '$activeCount',
+                            color: AppColors.success,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.person_off_outlined,
+                            label: 'Inactive',
+                            value: '$inactiveCount',
+                            color: AppColors.error,
+                          ),
+                        ],
+                      ),
                     ),
-                    PartnerStatChip(
-                      icon: Icons.check_circle_outline,
-                      label: 'Active',
-                      value: '$activeCount',
-                      color: AppColors.success,
-                    ),
-                    PartnerStatChip(
-                      icon: Icons.person_off_outlined,
-                      label: 'Inactive',
-                      value: '$inactiveCount',
-                      color: AppColors.error,
+                    const SizedBox(width: 24),
+                    FilledButton.icon(
+                      onPressed: () => _openCreateDialog(context, ref),
+                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                      label: const Text('Create Partner'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 if (accounts.isEmpty)
                   const _EmptyAccountsCard()
                 else if (filtered.isEmpty)

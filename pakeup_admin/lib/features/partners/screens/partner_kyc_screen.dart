@@ -40,13 +40,6 @@ class PartnerKycScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(
-          icon: Icons.verified_user_rounded,
-          title: 'Partner KYC',
-          subtitle:
-              'Review and approve partner identity and business documents before go-live.',
-        ),
-        const SizedBox(height: 24),
         const PartnerFocusBanner(),
         kycAsync.when(
           loading: () => const Center(
