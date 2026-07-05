@@ -121,6 +121,7 @@ class PartnerAccountRecord {
     required this.partnerId,
     required this.businessName,
     required this.ownerName,
+    this.phone,
     this.primaryImage,
     this.images = const [],
     this.isActive = true,
@@ -137,6 +138,7 @@ class PartnerAccountRecord {
   final String partnerId;
   final String businessName;
   final String ownerName;
+  final String? phone;
   final String? primaryImage;
   final List<String> images;
   final bool isActive;
@@ -170,6 +172,7 @@ class PartnerAccountRecord {
       partnerId: json['partner_id'] as String? ?? '',
       businessName: json['business_name'] as String? ?? '',
       ownerName: json['owner_name'] as String? ?? '',
+      phone: json['phone'] as String?,
       primaryImage: json['primary_image'] as String?,
       images: (json['images'] as List<dynamic>?)
               ?.map((e) => e as String)

@@ -14,7 +14,8 @@ BEGIN
       SELECT
         p.id AS partner_id,
         p.business_name,
-        p.owner_name,
+        coalesce(a.owner_name, p.owner_name) AS owner_name,
+        coalesce(a.phone, p.phone) AS phone,
         p.primary_image,
         p.images,
         p.is_active,
@@ -27,6 +28,7 @@ BEGIN
         k.submitted_at AS kyc_submitted_at,
         k.updated_at AS account_updated_at
       FROM partners p
+      LEFT JOIN partner_accounts a ON a.id = p.account_id
       LEFT JOIN partner_kyc_details k ON k.partner_id = p.id
     ) t
   );

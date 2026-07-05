@@ -17,6 +17,8 @@ BEGIN
         p.business_name AS partner_name,
         p.primary_image,
         p.images,
+        coalesce(a.owner_name, p.owner_name) AS owner_name,
+        coalesce(a.phone, p.phone) AS phone,
         ps.name,
         ps.description,
         ps.price,
@@ -25,6 +27,7 @@ BEGIN
         ps.created_at
       FROM partner_services ps
       JOIN partners p ON p.id = ps.partner_id
+      LEFT JOIN partner_accounts a ON a.id = p.account_id
     ) t
   );
 END;
