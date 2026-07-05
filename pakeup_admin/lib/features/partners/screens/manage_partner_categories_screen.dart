@@ -9,6 +9,7 @@ import '../data/partner_categories_repository.dart';
 import '../providers/partner_categories_provider.dart';
 import '../widgets/partner_form_field.dart';
 import '../widgets/partner_table_widgets.dart';
+import '../../../core/providers/header_search_provider.dart';
 
 class ManagePartnerCategoriesScreen extends ConsumerWidget {
   const ManagePartnerCategoriesScreen({super.key});
@@ -16,6 +17,7 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categoriesAsync = ref.watch(partnerCategoriesListProvider);
+    final searchQuery = ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,12 +55,22 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
             ),
           ),
           data: (categories) {
-            if (categories.isEmpty) {
-              return const Card(
+            final filtered = searchQuery.isEmpty
+                ? categories
+                : categories.where((c) {
+                    final q = searchQuery;
+                    return c.name.toLowerCase().contains(q) ||
+                        c.slug.toLowerCase().contains(q);
+                  }).toList();
+
+            if (filtered.isEmpty) {
+              return Card(
                 child: Padding(
-                  padding: EdgeInsets.all(48),
+                  padding: const EdgeInsets.all(48),
                   child: Center(
-                    child: Text('No categories yet. Add your first category.'),
+                    child: Text(searchQuery.isEmpty
+                        ? 'No categories yet. Add your first category.'
+                        : 'No categories match "$searchQuery"'),
                   ),
                 ),
               );
@@ -105,13 +117,13 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  for (var i = 0; i < categories.length; i++)
+                  for (var i = 0; i < filtered.length; i++)
                     _CategoryRow(
-                      category: categories[i],
-                      isLast: i == categories.length - 1,
-                      onEdit: () => _openForm(context, ref, existing: categories[i]),
-                      onDelete: () => _delete(context, ref, categories[i]),
-                      onToggle: () => _toggleActive(context, ref, categories[i]),
+                      category: filtered[i],
+                      isLast: i == filtered.length - 1,
+                      onEdit: () => _openForm(context, ref, existing: filtered[i]),
+                      onDelete: () => _delete(context, ref, filtered[i]),
+                      onToggle: () => _toggleActive(context, ref, filtered[i]),
                     ),
                 ],
               ),

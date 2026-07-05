@@ -91,17 +91,18 @@ class _LocationPreviewCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Ink(
-            height: 120,
+            height: 150,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: hasLocation
-                    ? AppColors.primary.withValues(alpha: 0.25)
+                    ? AppColors.primary.withValues(alpha: 0.3)
                     : AppColors.border,
+                width: 1.2,
               ),
             ),
             child: Stack(
@@ -114,7 +115,7 @@ class _LocationPreviewCard extends StatelessWidget {
                       latitude: latitude!,
                       longitude: longitude!,
                       width: 640,
-                      height: 240,
+                      height: 280,
                       zoom: 15,
                       showMarker: true,
                     ),
@@ -130,32 +131,46 @@ class _LocationPreviewCard extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.04),
-                        Colors.black.withValues(alpha: 0.5),
+                        Colors.black.withValues(alpha: 0.02),
+                        Colors.black.withValues(alpha: 0.6),
                       ],
                     ),
                   ),
                 ),
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: 12,
+                  right: 12,
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.94),
-                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.map_rounded, size: 13, color: AppColors.primary),
-                        const SizedBox(width: 4),
+                        Icon(
+                          hasLocation
+                              ? Icons.edit_location_alt_rounded
+                              : Icons.map_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 6),
                         Text(
-                          hasLocation ? 'Change' : 'Open map',
+                          hasLocation ? 'Edit on Map' : 'Select on Map',
                           style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
@@ -163,37 +178,57 @@ class _LocationPreviewCard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 10,
+                  left: 16,
+                  right: 16,
+                  bottom: 14,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        hasLocation
-                            ? (address.isNotEmpty ? address : 'Location pinned')
-                            : 'Tap to pin location on map',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            hasLocation
+                                ? Icons.check_circle_rounded
+                                : Icons.touch_app_rounded,
+                            size: 15,
+                            color: hasLocation ? AppColors.success : Colors.white70,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              hasLocation
+                                  ? (address.isNotEmpty
+                                      ? address
+                                      : 'Location pinned')
+                                  : 'Tap to pin location on map',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       if (hasLocation) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          [
-                            if (city.isNotEmpty) city,
-                            if (state.isNotEmpty) state,
-                          ].join(', '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 10.5,
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 23),
+                          child: Text(
+                            [
+                              if (city.isNotEmpty) city,
+                              if (state.isNotEmpty) state,
+                            ].join(', '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -217,18 +252,65 @@ class _MapPlaceholder extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withValues(alpha: 0.1),
-            AppColors.background,
+            AppColors.primary.withValues(alpha: 0.15),
+            AppColors.primary.withValues(alpha: 0.02),
+            AppColors.secondary.withValues(alpha: 0.05),
           ],
         ),
       ),
-      child: Center(
-        child: Icon(
-          Icons.map_outlined,
-          size: 36,
-          color: AppColors.primary.withValues(alpha: 0.35),
-        ),
+      child: Stack(
+        children: [
+          // Grid pattern overlay for a high-tech mapping look
+          Positioned.fill(
+            child: GridPaper(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              divisions: 1,
+              subdivisions: 1,
+              interval: 30,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          // Pulsing location halo in the center
+          Center(
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.06),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.1),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.location_searching_rounded,
+                size: 16,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

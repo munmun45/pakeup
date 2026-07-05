@@ -10,7 +10,7 @@ import '../models/partner_service_models.dart';
 import '../providers/partner_services_provider.dart';
 import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
-import '../utils/partner_navigation.dart';
+import '../../../core/providers/header_search_provider.dart';
 import '../widgets/partner_empty_state.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_service_form_dialog.dart';
@@ -25,6 +25,7 @@ class PartnerServicesScreen extends ConsumerWidget {
     final servicesAsync = ref.watch(partnerServicesListProvider);
     final partnersAsync = ref.watch(partnersListProvider);
     final focus = ref.watch(partnerTableFocusProvider);
+    final searchQuery = ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,6 +55,14 @@ class PartnerServicesScreen extends ConsumerWidget {
                   orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
                 );
                 if (partner.accountId != accountFilter.accountId) return false;
+              }
+              if (searchQuery.isNotEmpty) {
+                final q = searchQuery;
+                final matches = s.partnerName.toLowerCase().contains(q) ||
+                    s.name.toLowerCase().contains(q) ||
+                    (s.description?.toLowerCase().contains(q) ?? false) ||
+                    s.price.toString().contains(q);
+                if (!matches) return false;
               }
               return true;
             }).toList();
@@ -202,8 +211,7 @@ class PartnerServicesScreen extends ConsumerWidget {
                                     style: partnerTableHeaderStyle,
                                   ),
                                 ),
-                                PartnerHubNavHeaders(),
-                                SizedBox(width: 12),
+                                Spacer(),
                                 SizedBox(
                                   width: 100,
                                   child: Text(
@@ -453,12 +461,7 @@ class _ServiceRow extends ConsumerWidget {
             width: 90,
             child: PartnerStatusBadge(isActive: service.isActive),
           ),
-          PartnerHubNavRow(
-            partnerId: service.partnerId,
-            businessName: service.partnerName,
-            currentPage: PartnerHubPage.service,
-          ),
-          const SizedBox(width: 12),
+          const Spacer(),
           SizedBox(
             width: 100,
             child: Row(

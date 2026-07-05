@@ -30,6 +30,8 @@ class PartnerRecord {
     this.loginId,
     this.hasPassword = false,
     this.storeCount = 1,
+    this.accountPhone,
+    this.accountWhatsapp,
     this.createdAt,
   });
 
@@ -59,6 +61,8 @@ class PartnerRecord {
   final String? loginId;
   final bool hasPassword;
   final int storeCount;
+  final String? accountPhone;
+  final String? accountWhatsapp;
   final DateTime? createdAt;
 
   String get displayCategory => categoryName ?? category;
@@ -91,6 +95,8 @@ class PartnerRecord {
       loginId: json['login_id'] as String?,
       hasPassword: json['has_password'] as bool? ?? false,
       storeCount: json['store_count'] as int? ?? 1,
+      accountPhone: json['account_phone'] as String?,
+      accountWhatsapp: json['account_whatsapp'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,

@@ -10,9 +10,9 @@ import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
 import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
-import '../utils/partner_navigation.dart';
 import '../widgets/account_passbook_column.dart';
 import '../widgets/partner_account_view_dialog.dart';
+import '../../../core/providers/header_search_provider.dart';
 import '../widgets/partner_bank_details_dialog.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_stat_chip.dart';
@@ -25,6 +25,7 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(partnerAccountsListProvider);
     final focus = ref.watch(partnerTableFocusProvider);
+    final searchQuery = ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,6 +55,15 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                   orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
                 );
                 if (partner.accountId != accountFilter.accountId) return false;
+              }
+              if (searchQuery.isNotEmpty) {
+                final q = searchQuery;
+                final matches = a.businessName.toLowerCase().contains(q) ||
+                    a.ownerName.toLowerCase().contains(q) ||
+                    (a.bankName?.toLowerCase().contains(q) ?? false) ||
+                    (a.accountNumber?.toLowerCase().contains(q) ?? false) ||
+                    (a.ifscCode?.toLowerCase().contains(q) ?? false);
+                if (!matches) return false;
               }
               return true;
             }).toList();
@@ -160,8 +170,6 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   Spacer(),
-                                  PartnerHubNavHeaders(),
-                                  SizedBox(width: 12),
                                   SizedBox(
                                     width: 120,
                                     child: Text(
@@ -395,12 +403,6 @@ class _AccountRow extends ConsumerWidget {
               ),
             ),
             const Spacer(),
-            PartnerHubNavRow(
-              partnerId: account.partnerId,
-              businessName: account.businessName,
-              currentPage: PartnerHubPage.account,
-            ),
-            const SizedBox(width: 12),
             SizedBox(
               width: 120,
               child: Row(

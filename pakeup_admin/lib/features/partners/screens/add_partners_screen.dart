@@ -7,7 +7,6 @@ import '../../../core/providers/header_search_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
 import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
@@ -143,7 +142,7 @@ class AddPartnersScreen extends ConsumerWidget {
       barrierDismissible: false,
       builder: (context) => PartnerFormDialog(
         existing: existing,
-        storeOnlyMode: existing == null,
+        storeOnlyMode: true,
       ),
     );
     if (saved == true) {
@@ -321,7 +320,7 @@ class _PartnersTable extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final minWidth = partnerTableMinWidth(
-          hubColumnWidth: PartnerHubNavHeaders.tableColumnWidth,
+          hubColumnWidth: 0,
         );
         final table = Card(
           clipBehavior: Clip.antiAlias,
@@ -347,7 +346,7 @@ class _PartnersTable extends StatelessWidget {
                     ),
                     const PartnerTableColumn(
                       width: partnerTableCityWidth,
-                      child: Text('CITY', style: partnerTableHeaderStyle),
+                      child: Text('CONTACT & ADDRESS', style: partnerTableHeaderStyle),
                     ),
                     const PartnerTableColumn(
                       width: partnerTableCategoryWidth,
@@ -358,10 +357,6 @@ class _PartnersTable extends StatelessWidget {
                       child: Text('STATUS', style: partnerTableHeaderStyle),
                     ),
                     const Spacer(),
-                    PartnerTableColumn(
-                      width: PartnerHubNavHeaders.tableColumnWidth,
-                      child: const PartnerHubNavHeaders(),
-                    ),
                     PartnerTableColumn(
                       width: partnerTableActionsColumnWidth,
                       showDivider: false,
@@ -447,14 +442,7 @@ class _PartnerRow extends ConsumerWidget {
             ),
             PartnerTableColumn(
               width: partnerTableCityWidth,
-              child: Text(
-                partner.city?.trim().isNotEmpty == true
-                    ? partner.city!
-                    : '—',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12.5),
-              ),
+              child: _ContactAddressCell(partner: partner),
             ),
             PartnerTableColumn(
               width: partnerTableCategoryWidth,
@@ -473,13 +461,6 @@ class _PartnerRow extends ConsumerWidget {
               ),
             ),
             const Spacer(),
-            PartnerTableColumn(
-              width: PartnerHubNavHeaders.tableColumnWidth,
-              child: PartnerHubNavRow(
-                partnerId: partner.id,
-                businessName: partner.businessName,
-              ),
-            ),
             PartnerTableColumn(
               width: partnerTableActionsColumnWidth,
               showDivider: false,
@@ -560,7 +541,7 @@ class _StoreDetailsCell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final phoneRaw = partner.phone?.trim();
+    final phoneRaw = (partner.accountPhone ?? partner.phone)?.trim();
     final hasPhone = phoneRaw != null && phoneRaw.isNotEmpty;
     final phone = hasPhone ? phoneRaw : 'No phone';
 
@@ -646,19 +627,20 @@ class _StoreDetailsCell extends ConsumerWidget {
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: () =>
-                                      _copyAndCallPhone(context, phoneRaw),
-                                  child: Text(
-                                    phone,
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.primary,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: AppColors.primary,
-                                    ),
-                                  ),
-                                ),
+                                   onTap: () =>
+                                       _copyAndCallPhone(context, phoneRaw),
+                                   child: MouseRegion(
+                                     cursor: SystemMouseCursors.click,
+                                     child: Text(
+                                       phone,
+                                       style: const TextStyle(
+                                         fontSize: 11.5,
+                                         fontWeight: FontWeight.w600,
+                                         color: AppColors.primary,
+                                       ),
+                                     ),
+                                   ),
+                                 ),
                               ],
                             )
                           : Text(
@@ -821,6 +803,221 @@ class _ErrorCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ContactAddressCell extends StatelessWidget {
+  const _ContactAddressCell({required this.partner});
+
+  final PartnerRecord partner;
+
+  Future<void> _launchMap(BuildContext context) async {
+    final lat = partner.latitude;
+    final lng = partner.longitude;
+    Uri uri;
+    if (lat != null && lng != null) {
+      uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    } else {
+      final address = [
+        partner.addressLine,
+        partner.city,
+        partner.state,
+        partner.pincode,
+      ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
+      if (address.isEmpty) {
+        AppSnackBar.warning(context, 'No address or location details found for this store');
+        return;
+      }
+      uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+    }
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        AppSnackBar.error(context, 'Could not open Google Maps');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackBar.error(context, 'Error opening map: $e');
+      }
+    }
+  }
+
+  Future<void> _copyAndCallPhone(BuildContext context, String phone) async {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: digits));
+
+    final uri = Uri(scheme: 'tel', path: digits);
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!context.mounted) return;
+    if (opened) {
+      AppSnackBar.success(context, 'Phone copied · opening dialer');
+    }
+  }
+
+  Future<void> _openWhatsApp(BuildContext context, String whatsapp) async {
+    final digits = whatsapp.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return;
+
+    final uri = Uri.parse('https://wa.me/$digits');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!context.mounted) return;
+    if (!opened) {
+      AppSnackBar.error(context, 'Could not open WhatsApp');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final phone = partner.phone?.trim();
+    final whatsapp = partner.whatsapp?.trim();
+    final hasPhone = phone != null && phone.isNotEmpty;
+    final hasWhatsapp = whatsapp != null && whatsapp.isNotEmpty;
+
+    final address = [
+      partner.addressLine,
+      partner.city,
+      partner.state,
+      partner.pincode,
+    ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (hasPhone || hasWhatsapp) ...[
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              if (hasPhone)
+                GestureDetector(
+                  onTap: () => _copyAndCallPhone(context, phone),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.phone_rounded, size: 10, color: AppColors.primary),
+                          const SizedBox(width: 3),
+                          Text(
+                            phone,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (hasWhatsapp)
+                GestureDetector(
+                  onTap: () => _openWhatsApp(context, whatsapp),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const _WhatsappIcon(size: 10),
+                          const SizedBox(width: 4),
+                          Text(
+                            whatsapp,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+        ],
+        GestureDetector(
+          onTap: () => _launchMap(context),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.place_rounded,
+                  size: 11,
+                  color: AppColors.primary.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    address.isNotEmpty ? address : 'Click to pin location',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: address.isNotEmpty ? FontWeight.w500 : FontWeight.w600,
+                      color: address.isNotEmpty ? AppColors.textSecondary : AppColors.primary,
+                      decoration: TextDecoration.underline,
+                      decorationColor: address.isNotEmpty
+                          ? AppColors.textSecondary.withValues(alpha: 0.4)
+                          : AppColors.primary.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WhatsappIcon extends StatelessWidget {
+  const _WhatsappIcon({this.size = 11});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(
+          Icons.chat_bubble_rounded,
+          size: size + 2,
+          color: const Color(0xFF25D366),
+        ),
+        Positioned(
+          top: (size + 2) * 0.15,
+          child: Icon(
+            Icons.phone_rounded,
+            size: (size + 2) * 0.55,
+            color: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

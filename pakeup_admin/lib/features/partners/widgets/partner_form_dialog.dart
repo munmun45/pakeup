@@ -52,6 +52,7 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
   bool _useExistingAccount = false;
   String? _selectedAccountId;
   bool _submitting = false;
+  String _accountSearchQuery = '';
 
   @override
   void initState() {
@@ -75,7 +76,10 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
     _lngCtrl = TextEditingController(text: e?.longitude?.toString() ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _category = e?.category;
-    if (widget.storeOnlyMode && widget.existing == null) {
+    if (e != null) {
+      _selectedAccountId = e.accountId;
+      _useExistingAccount = e.accountId != null;
+    } else if (widget.storeOnlyMode) {
       _useExistingAccount = true;
     }
   }
@@ -316,28 +320,7 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
   }
 
   Widget _accountSection(List<PartnerOwnerAccount> accounts, {required bool wide}) {
-    final accountLocked = widget.existing != null ||
-        (_useExistingAccount && _selectedAccountId != null);
-
-    if (widget.storeOnlyMode &&
-        widget.existing == null &&
-        _selectedAccountId == null &&
-        accounts.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final account = accounts.first;
-        setState(() {
-          _selectedAccountId = account.id;
-          _applyAccountFields(
-            ownerName: account.ownerName,
-            phone: account.phone,
-            email: account.email,
-            whatsapp: account.whatsapp,
-            alternatePhone: account.alternatePhone,
-          );
-        });
-      });
-    }
+    final accountLocked = widget.existing != null;
 
     return PartnerFormSection(
       title: widget.storeOnlyMode && widget.existing == null
@@ -356,62 +339,14 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
             onChanged: (value) {
               setState(() {
                 _useExistingAccount = value;
-                if (!value) {
-                  _selectedAccountId = null;
-                } else if (accounts.isNotEmpty) {
-                  _selectedAccountId = accounts.first.id;
-                  final account = accounts.first;
-                  _applyAccountFields(
-                    ownerName: account.ownerName,
-                    phone: account.phone,
-                    email: account.email,
-                    whatsapp: account.whatsapp,
-                    alternatePhone: account.alternatePhone,
-                  );
-                }
+                _selectedAccountId = null;
+                _accountSearchQuery = '';
               });
             },
           ),
-          if (_useExistingAccount && accounts.isNotEmpty) ...[
-            PartnerFormDropdown<String>(
-              label: 'Existing Account',
-              icon: Icons.people_outline,
-              value: _selectedAccountId ?? accounts.first.id,
-              items: [
-                for (final account in accounts)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.displayLabel),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                final account =
-                    accounts.firstWhere((a) => a.id == value);
-                setState(() {
-                  _selectedAccountId = value;
-                  _applyAccountFields(
-                    ownerName: account.ownerName,
-                    phone: account.phone,
-                    email: account.email,
-                    whatsapp: account.whatsapp,
-                    alternatePhone: account.alternatePhone,
-                  );
-                });
-              },
-            ),
-          ],
-          if (_useExistingAccount && accounts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'No accounts yet. Turn off the switch above to create a new account.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              ),
-            ),
-          if (_useExistingAccount) const SizedBox(height: 8),
+          const SizedBox(height: 8),
         ],
-        if (widget.storeOnlyMode && widget.existing == null) ...[
+        if (_useExistingAccount) ...[
           if (accounts.isEmpty)
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -428,43 +363,257 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                 style: TextStyle(fontSize: 13, height: 1.4),
               ),
             )
-          else
-            PartnerFormDropdown<String>(
-              label: 'Parent Account',
-              icon: Icons.people_outline,
-              value: _selectedAccountId ?? accounts.first.id,
-              items: [
-                for (final account in accounts)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.displayLabel),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                final account =
-                    accounts.firstWhere((a) => a.id == value);
+          else if (_selectedAccountId == null) ...[
+            // 1. Search Bar for Parent Accounts
+            TextField(
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                hintText: 'Search parent accounts by name, phone...',
+                hintStyle: const TextStyle(fontSize: 13.5),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+              onChanged: (val) {
                 setState(() {
-                  _selectedAccountId = value;
-                  _applyAccountFields(
-                    ownerName: account.ownerName,
-                    phone: account.phone,
-                    email: account.email,
-                    whatsapp: account.whatsapp,
-                    alternatePhone: account.alternatePhone,
-                  );
+                  _accountSearchQuery = val;
                 });
               },
             ),
+            // 2. Search Results List
+            () {
+              final query = _accountSearchQuery.toLowerCase().trim();
+              final filteredAccounts = accounts.where((a) {
+                if (query.isEmpty) return false;
+                return a.ownerName.toLowerCase().contains(query) ||
+                    (a.phone?.toLowerCase().contains(query) ?? false) ||
+                    (a.email?.toLowerCase().contains(query) ?? false);
+              }).toList();
+
+              if (query.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Text(
+                      'Type name or phone to search parent accounts',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                    ),
+                  ),
+                );
+              }
+
+              if (filteredAccounts.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Text(
+                      'No matching accounts found',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                    ),
+                  ),
+                );
+              }
+
+              return Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 8),
+                constraints: const BoxConstraints(maxHeight: 180),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: filteredAccounts.length,
+                  itemBuilder: (context, index) {
+                    final account = filteredAccounts[index];
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        account.ownerName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        '${account.phone ?? ''} • ${account.email ?? ''}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      trailing: Text(
+                        '${account.storeCount} store(s)',
+                        style: const TextStyle(fontSize: 11.5, color: AppColors.primary, fontWeight: FontWeight.bold),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          _selectedAccountId = account.id;
+                          _accountSearchQuery = '';
+                        });
+                      },
+                    );
+                  },
+                ),
+              );
+            }(),
+            const SizedBox(height: 12),
+          ] else ...[
+            // 3. Selected Account Card!
+            () {
+              final selectedAccount = accounts.firstWhere(
+                (a) => a.id == _selectedAccountId,
+                orElse: () => accounts.first,
+              );
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedAccount.ownerName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.5,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                'ID: ${selectedAccount.id}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                          onPressed: () {
+                            setState(() {
+                              _selectedAccountId = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: AppColors.border),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (selectedAccount.phone != null) ...[
+                          const Icon(Icons.phone_rounded, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            selectedAccount.phone!,
+                            style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                        if (selectedAccount.email != null) ...[
+                          const Icon(Icons.email_rounded, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              selectedAccount.email!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          _applyAccountFields(
+                            ownerName: selectedAccount.ownerName,
+                            phone: selectedAccount.phone,
+                            email: selectedAccount.email,
+                            whatsapp: selectedAccount.whatsapp,
+                            alternatePhone: selectedAccount.alternatePhone,
+                          );
+                          AppSnackBar.success(context, 'Store contact details pre-filled from parent account!');
+                        },
+                        icon: const Icon(Icons.copy_all_rounded, size: 16),
+                        label: const Text('Use Parent Account Contact Details', style: TextStyle(fontSize: 12.5)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }(),
+          ],
         ],
-        if (!widget.storeOnlyMode || widget.existing != null) ...[
-        PartnerFormField(
-          label: 'Owner Name',
-          icon: Icons.person_outline,
-          controller: _ownerCtrl,
-          required: true,
-          readOnly: accountLocked && _useExistingAccount,
-        ),
+        if (!_useExistingAccount) ...[
+          PartnerFormField(
+            label: 'Owner Name',
+            icon: Icons.person_outline,
+            controller: _ownerCtrl,
+            required: true,
+          ),
+          if (wide)
+            PartnerFormRow(
+              children: [
+                _emailField(),
+                _phoneField(
+                  label: 'Alternate Phone',
+                  icon: Icons.phone_callback_outlined,
+                  controller: _alternatePhoneCtrl,
+                ),
+              ],
+            )
+          else ...[
+            _emailField(),
+            _phoneField(
+              label: 'Alternate Phone',
+              icon: Icons.phone_callback_outlined,
+              controller: _alternatePhoneCtrl,
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _contactSection({required bool wide}) {
+    return PartnerFormSection(
+      title: 'Store Contact Details',
+      icon: Icons.badge_outlined,
+      children: [
         if (wide)
           PartnerFormRow(
             children: [
@@ -473,9 +622,13 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                 icon: Icons.phone_outlined,
                 controller: _phoneCtrl,
                 required: true,
-                readOnly: accountLocked && _useExistingAccount,
               ),
-              _emailField(readOnly: accountLocked && _useExistingAccount),
+              _phoneField(
+                label: 'WhatsApp',
+                icon: Icons.chat_outlined,
+                controller: _whatsappCtrl,
+                required: true,
+              ),
             ],
           )
         else ...[
@@ -484,55 +637,14 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
             icon: Icons.phone_outlined,
             controller: _phoneCtrl,
             required: true,
-            readOnly: accountLocked && _useExistingAccount,
           ),
-          _emailField(readOnly: accountLocked && _useExistingAccount),
-        ],
-        if (wide)
-          PartnerFormRow(
-            children: [
-              _phoneField(
-                label: 'WhatsApp',
-                icon: Icons.chat_outlined,
-                controller: _whatsappCtrl,
-                required: true,
-                readOnly: accountLocked && _useExistingAccount,
-              ),
-              _phoneField(
-                label: 'Alternate Phone',
-                icon: Icons.phone_callback_outlined,
-                controller: _alternatePhoneCtrl,
-                readOnly: accountLocked && _useExistingAccount,
-              ),
-            ],
-          )
-        else ...[
           _phoneField(
             label: 'WhatsApp',
             icon: Icons.chat_outlined,
             controller: _whatsappCtrl,
             required: true,
-            readOnly: accountLocked && _useExistingAccount,
-          ),
-          _phoneField(
-            label: 'Alternate Phone',
-            icon: Icons.phone_callback_outlined,
-            controller: _alternatePhoneCtrl,
-            readOnly: accountLocked && _useExistingAccount,
           ),
         ],
-        ],
-        if (accountLocked && _useExistingAccount && !widget.storeOnlyMode)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              'Account details are shared across all stores for this owner.',
-              style: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.95),
-                fontSize: 12.5,
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -570,61 +682,12 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
     );
   }
 
-  Widget _storeDetailsSection({required bool wide}) {
-    return PartnerFormSection(
-      title: 'Store Details',
-      icon: Icons.receipt_long_outlined,
-      children: [
-        if (wide)
-          PartnerFormRow(
-            children: [
-              PartnerFormField(
-                label: 'Website',
-                icon: Icons.language_outlined,
-                controller: _websiteCtrl,
-              ),
-              PartnerFormField(
-                label: 'GST Number',
-                icon: Icons.receipt_long_outlined,
-                controller: _gstCtrl,
-              ),
-            ],
-          )
-        else ...[
-          PartnerFormField(
-            label: 'Website',
-            icon: Icons.language_outlined,
-            controller: _websiteCtrl,
-          ),
-          PartnerFormField(
-            label: 'GST Number',
-            icon: Icons.receipt_long_outlined,
-            controller: _gstCtrl,
-          ),
-        ],
-        const SizedBox(height: 4),
-        const Divider(height: 24),
-        PartnerFormField(
-          label: 'Internal Notes',
-          icon: Icons.notes_outlined,
-          controller: _notesCtrl,
-          maxLines: 3,
-          minLines: 2,
-          hint: 'Admin-only notes, special instructions, or extra details...',
-        ),
-      ],
-    );
-  }
 
-  Widget _locationSection() {
+  Widget _locationSection({required bool wide}) {
     final mapsKey = Env.googleMapsApiKey;
 
-    return PartnerFormSection(
-      title: 'Location & Map',
-      icon: Icons.location_on_outlined,
-      children: [
-        if (mapsKey != null)
-          PartnerLocationPicker(
+    final mapWidget = mapsKey != null
+        ? PartnerLocationPicker(
             apiKey: mapsKey,
             latitude: _latitude,
             longitude: _longitude,
@@ -633,8 +696,7 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
             state: _stateCtrl.text,
             onLocationChanged: _applyLocation,
           )
-        else
-          Container(
+        : Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(14),
@@ -650,39 +712,72 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
               'search and location picker.',
               style: TextStyle(fontSize: 12.5),
             ),
+          );
+
+    final fields = [
+      PartnerFormField(
+        label: 'Full Address',
+        icon: Icons.place_outlined,
+        controller: _addressCtrl,
+        compact: true,
+        maxLines: 2,
+        minLines: 1,
+      ),
+      PartnerFormRow(
+        children: [
+          PartnerFormField(
+            label: 'City',
+            icon: Icons.location_city_outlined,
+            controller: _cityCtrl,
+            compact: true,
           ),
-        const SizedBox(height: 10),
-        PartnerFormField(
-          label: 'Full Address',
-          icon: Icons.place_outlined,
-          controller: _addressCtrl,
-          compact: true,
-          maxLines: 2,
-          minLines: 1,
-        ),
-        PartnerFormRow(
-          children: [
-            PartnerFormField(
-              label: 'City',
-              icon: Icons.location_city_outlined,
-              controller: _cityCtrl,
-              compact: true,
-            ),
-            PartnerFormField(
-              label: 'State',
-              icon: Icons.map_outlined,
-              controller: _stateCtrl,
-              compact: true,
-            ),
-            PartnerFormField(
-              label: 'Pincode',
-              icon: Icons.pin_outlined,
-              controller: _pincodeCtrl,
-              keyboard: TextInputType.number,
-              compact: true,
-            ),
-          ],
-        ),
+          PartnerFormField(
+            label: 'State',
+            icon: Icons.map_outlined,
+            controller: _stateCtrl,
+            compact: true,
+          ),
+          PartnerFormField(
+            label: 'Pincode',
+            icon: Icons.pin_outlined,
+            controller: _pincodeCtrl,
+            keyboard: TextInputType.number,
+            compact: true,
+          ),
+        ],
+      ),
+    ];
+
+    return PartnerFormSection(
+      title: 'Location & Map',
+      icon: Icons.location_on_outlined,
+      children: [
+        if (wide)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: mapWidget,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: fields,
+                ),
+              ),
+            ],
+          )
+        else ...[
+          mapWidget,
+          const SizedBox(height: 10),
+          ...fields,
+        ],
         const SizedBox(height: 4),
       ],
     );
@@ -742,9 +837,17 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Expanded(
-                                        child: _accountSection(
-                                          accounts,
-                                          wide: true,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            _accountSection(
+                                              accounts,
+                                              wide: true,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            _contactSection(wide: true),
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(width: 16),
@@ -754,9 +857,7 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                                     ],
                                   ),
                                   const SizedBox(height: 16),
-                                  _storeDetailsSection(wide: true),
-                                  const SizedBox(height: 16),
-                                  _locationSection(),
+                                  _locationSection(wide: true),
                                 ],
                               );
                             }
@@ -764,10 +865,12 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                             return Column(
                               children: [
                                 _accountSection(accounts, wide: false),
-                                _businessSection(categories),
-                                _storeDetailsSection(wide: false),
                                 const SizedBox(height: 16),
-                                _locationSection(),
+                                _contactSection(wide: false),
+                                const SizedBox(height: 16),
+                                _businessSection(categories),
+                                const SizedBox(height: 16),
+                                _locationSection(wide: false),
                               ],
                             );
                           },

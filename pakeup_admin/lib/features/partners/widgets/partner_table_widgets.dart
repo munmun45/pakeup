@@ -273,7 +273,7 @@ const partnerTableHeaderStyle = TextStyle(
 const partnerTableColumnPadding = EdgeInsets.symmetric(horizontal: 14);
 
 const partnerTableStoreDetailsWidth = 320.0;
-const partnerTableCityWidth = 120.0;
+const partnerTableCityWidth = 260.0;
 const partnerTableCategoryWidth = 130.0;
 const partnerTableStatusWidth = 100.0;
 

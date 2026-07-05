@@ -12,8 +12,8 @@ import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
 import '../widgets/kyc_documents_column.dart';
 import '../widgets/partner_bank_details_dialog.dart';
-import '../utils/partner_navigation.dart';
 import '../widgets/partner_hub_nav.dart';
+import '../../../core/providers/header_search_provider.dart';
 import '../widgets/partner_kyc_documents_dialog.dart';
 import '../widgets/partner_kyc_form_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
@@ -36,6 +36,7 @@ class PartnerKycScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kycAsync = ref.watch(partnerKycOverviewListProvider);
     final focus = ref.watch(partnerTableFocusProvider);
+    final searchQuery = ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -65,6 +66,14 @@ class PartnerKycScreen extends ConsumerWidget {
                   orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
                 );
                 if (partner.accountId != accountFilter.accountId) return false;
+              }
+              if (searchQuery.isNotEmpty) {
+                final q = searchQuery;
+                final matches = r.businessName.toLowerCase().contains(q) ||
+                    r.ownerName.toLowerCase().contains(q) ||
+                    (r.aadhaarNumber?.toLowerCase().contains(q) ?? false) ||
+                    (r.panNumber?.toLowerCase().contains(q) ?? false);
+                if (!matches) return false;
               }
               return true;
             }).toList();
@@ -171,8 +180,6 @@ class PartnerKycScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   Spacer(),
-                                  PartnerHubNavHeaders(),
-                                  SizedBox(width: 12),
                                   SizedBox(
                                     width: 160,
                                     child: Text(
@@ -418,12 +425,6 @@ class _KycRow extends ConsumerWidget {
             ),
           ),
           const Spacer(),
-          PartnerHubNavRow(
-            partnerId: row.partnerId,
-            businessName: row.businessName,
-            currentPage: PartnerHubPage.kyc,
-          ),
-          const SizedBox(width: 12),
           SizedBox(
             width: 160,
             child: Row(
