@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
@@ -323,7 +322,7 @@ class _AccountRow extends ConsumerWidget {
                     radius: 16,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                     child: Text(
-                      account.businessName[0].toUpperCase(),
+                      account.businessName.isNotEmpty ? account.businessName[0].toUpperCase() : '?',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,

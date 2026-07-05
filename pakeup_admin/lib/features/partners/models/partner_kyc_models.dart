@@ -75,9 +75,9 @@ class PartnerKycOverviewRecord {
 
   factory PartnerKycOverviewRecord.fromJson(Map<String, dynamic> json) {
     return PartnerKycOverviewRecord(
-      partnerId: json['partner_id'] as String,
-      businessName: json['business_name'] as String,
-      ownerName: json['owner_name'] as String,
+      partnerId: json['partner_id'] as String? ?? '',
+      businessName: json['business_name'] as String? ?? '',
+      ownerName: json['owner_name'] as String? ?? '',
       isActive: json['is_active'] as bool? ?? true,
       kycStatus: json['kyc_status'] as String? ?? 'pending',
       panNumber: json['pan_number'] as String?,
@@ -151,9 +151,9 @@ class PartnerAccountRecord {
 
   factory PartnerAccountRecord.fromJson(Map<String, dynamic> json) {
     return PartnerAccountRecord(
-      partnerId: json['partner_id'] as String,
-      businessName: json['business_name'] as String,
-      ownerName: json['owner_name'] as String,
+      partnerId: json['partner_id'] as String? ?? '',
+      businessName: json['business_name'] as String? ?? '',
+      ownerName: json['owner_name'] as String? ?? '',
       isActive: json['is_active'] as bool? ?? true,
       accountStatus: json['account_status'] as String? ?? 'pending',
       bankAccountHolder: json['bank_account_holder'] as String?,
