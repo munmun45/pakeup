@@ -13,6 +13,7 @@ import '../providers/partner_categories_provider.dart';
 import '../providers/partners_provider.dart';
 import '../utils/partner_map_utils.dart';
 import 'partner_form_field.dart';
+import 'partner_images_dialog.dart';
 import 'partner_location_picker.dart';
 
 class PartnerFormDialog extends ConsumerStatefulWidget {
@@ -890,6 +891,31 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (isEdit) ...[
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final changed = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => PartnerImagesDialog(partner: widget.existing!),
+                        );
+                        if (changed == true) {
+                          ref.invalidate(partnersListProvider);
+                        }
+                      },
+                      icon: const Icon(Icons.image_outlined),
+                      label: const Text('Manage Images'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
                   TextButton(
                     onPressed: _submitting ? null : () => Navigator.pop(context),
                     child: const Text('Cancel'),

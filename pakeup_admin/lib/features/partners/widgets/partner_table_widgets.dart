@@ -276,6 +276,7 @@ const partnerTableStoreDetailsWidth = 320.0;
 const partnerTableCityWidth = 260.0;
 const partnerTableCategoryWidth = 130.0;
 const partnerTableStatusWidth = 100.0;
+const partnerTableImagesWidth = 140.0;
 
 const partnerTableActionButtonSize = 30.0;
 const partnerTableActionGap = 4.0;
@@ -292,6 +293,7 @@ double partnerTableMinWidth({required double hubColumnWidth}) =>
     partnerTableCityWidth +
     partnerTableCategoryWidth +
     partnerTableStatusWidth +
+    partnerTableImagesWidth +
     hubColumnWidth +
     partnerTableActionsColumnWidth;
 

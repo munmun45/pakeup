@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'partner_kyc_repository.dart';
@@ -33,6 +36,8 @@ class PartnerRecord {
     this.accountPhone,
     this.accountWhatsapp,
     this.createdAt,
+    this.images = const [],
+    this.primaryImage,
   });
 
   final String id;
@@ -64,6 +69,8 @@ class PartnerRecord {
   final String? accountPhone;
   final String? accountWhatsapp;
   final DateTime? createdAt;
+  final List<String> images;
+  final String? primaryImage;
 
   String get displayCategory => categoryName ?? category;
 
@@ -100,6 +107,8 @@ class PartnerRecord {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
+      images: (json['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      primaryImage: json['primary_image'] as String?,
     );
   }
 
@@ -440,6 +449,81 @@ class PartnersRepository {
         'partner_id': partnerId,
         'login_id': loginId,
         'new_pass': password,
+      },
+    );
+  }
+
+  Future<String> uploadStoreImage({
+    required String partnerId,
+    required String localPath,
+  }) async {
+    final file = File(localPath);
+    if (!await file.exists()) {
+      throw Exception('File not found');
+    }
+
+    // Optimize image bytes first to target 20-40KB
+    final bytes = await _optimizeImage(file);
+
+    // Save as .jpg for compressed images
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final storagePath = '$partnerId/image_$timestamp.jpg';
+
+    await _client.storage.from('partner-images').uploadBinary(
+          storagePath,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+
+    return _client.storage.from('partner-images').getPublicUrl(storagePath);
+  }
+
+  Future<Uint8List> _optimizeImage(File file) async {
+    final bytes = await file.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      return bytes;
+    }
+
+    // Resize image if it exceeds 800px in either dimension
+    img.Image resized = decoded;
+    const maxDimension = 800;
+    if (decoded.width > maxDimension || decoded.height > maxDimension) {
+      if (decoded.width > decoded.height) {
+        resized = img.copyResize(decoded, width: maxDimension);
+      } else {
+        resized = img.copyResize(decoded, height: maxDimension);
+      }
+    }
+
+    // Compress iteratively to target 20KB - 40KB in JPEG format
+    int quality = 75;
+    List<int> compressed = img.encodeJpg(resized, quality: quality);
+    
+    while (compressed.length > 45 * 1024 && quality > 15) {
+      quality -= 10;
+      compressed = img.encodeJpg(resized, quality: quality);
+    }
+    
+    return Uint8List.fromList(compressed);
+  }
+
+  Future<void> updatePartnerImages({
+    required String callerId,
+    required String partnerId,
+    required List<String> images,
+    required String? primaryImage,
+  }) async {
+    await _client.rpc(
+      'update_partner_images',
+      params: {
+        'caller_id': callerId,
+        'partner_id': partnerId,
+        'images': images,
+        'primary_image': primaryImage,
       },
     );
   }

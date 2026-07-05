@@ -11,6 +11,7 @@ import '../data/partners_repository.dart';
 import '../providers/partner_table_focus_provider.dart';
 import '../providers/partners_provider.dart';
 import '../widgets/partner_detail_dialog.dart';
+import '../widgets/partner_images_dialog.dart';
 import '../widgets/partner_form_dialog.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_stat_chip.dart';
@@ -129,6 +130,7 @@ class AddPartnersScreen extends ConsumerWidget {
                     onDelete: (p) => _deletePartner(context, ref, p),
                     onToggleActive: (p) =>
                         _toggleActive(context, ref, p),
+                    onManageImages: (p) => _openStoreImages(context, ref, p),
                   ),
               ],
             );
@@ -136,6 +138,21 @@ class AddPartnersScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _openStoreImages(
+    BuildContext context,
+    WidgetRef ref,
+    PartnerRecord partner,
+  ) async {
+    final changed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PartnerImagesDialog(partner: partner),
+    );
+    if (changed == true) {
+      ref.invalidate(partnersListProvider);
+    }
   }
 
   Future<void> _openStoreForm(
@@ -313,6 +330,7 @@ class _PartnersTable extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onToggleActive,
+    required this.onManageImages,
   });
 
   final List<PartnerRecord> partners;
@@ -320,6 +338,7 @@ class _PartnersTable extends StatelessWidget {
   final void Function(PartnerRecord) onEdit;
   final void Function(PartnerRecord) onDelete;
   final void Function(PartnerRecord) onToggleActive;
+  final void Function(PartnerRecord) onManageImages;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +381,10 @@ class _PartnersTable extends StatelessWidget {
                       width: partnerTableStatusWidth,
                       child: Text('STATUS', style: partnerTableHeaderStyle),
                     ),
+                    const PartnerTableColumn(
+                      width: partnerTableImagesWidth,
+                      child: Text('PHOTOS', style: partnerTableHeaderStyle),
+                    ),
                     const Spacer(),
                     PartnerTableColumn(
                       width: partnerTableActionsColumnWidth,
@@ -384,6 +407,7 @@ class _PartnersTable extends StatelessWidget {
                   onEdit: () => onEdit(partners[i]),
                   onDelete: () => onDelete(partners[i]),
                   onToggleActive: () => onToggleActive(partners[i]),
+                  onManageImages: () => onManageImages(partners[i]),
                 ),
             ],
           ),
@@ -409,6 +433,7 @@ class _PartnerRow extends ConsumerWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onToggleActive,
+    required this.onManageImages,
   });
 
   final PartnerRecord partner;
@@ -417,6 +442,7 @@ class _PartnerRow extends ConsumerWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onToggleActive;
+  final VoidCallback onManageImages;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -466,6 +492,22 @@ class _PartnerRow extends ConsumerWidget {
                 child: PartnerStatusBadge(isActive: partner.isActive),
               ),
             ),
+            PartnerTableColumn(
+              width: partnerTableImagesWidth,
+              child: Builder(
+                builder: (context) {
+                  final avatarUrl = partner.primaryImage != null && partner.primaryImage!.trim().isNotEmpty
+                      ? partner.primaryImage
+                      : (partner.images.isNotEmpty ? partner.images.first : null);
+                  final otherImages = partner.images.where((url) => url != avatarUrl).toList();
+                  return _StorePhotosCell(
+                    images: otherImages,
+                    primaryImage: partner.primaryImage,
+                    partner: partner,
+                  );
+                },
+              ),
+            ),
             const Spacer(),
             PartnerTableColumn(
               width: partnerTableActionsColumnWidth,
@@ -482,6 +524,13 @@ class _PartnerRow extends ConsumerWidget {
                     tooltip: 'View',
                     color: AppColors.primary,
                     onPressed: onView,
+                  ),
+                  const SizedBox(width: 4),
+                  PartnerTableAction(
+                    icon: Icons.image_outlined,
+                    tooltip: 'Manage Images',
+                    color: AppColors.primary,
+                    onPressed: onManageImages,
                   ),
                   const SizedBox(width: 4),
                   PartnerTableAction(
@@ -546,27 +595,41 @@ class _StoreDetailsCell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final phoneRaw = (partner.accountPhone ?? partner.phone)?.trim();
+  Widget build(BuildContext context, WidgetRef ref) {    final phoneRaw = (partner.accountPhone ?? partner.phone)?.trim();
     final hasPhone = phoneRaw != null && phoneRaw.isNotEmpty;
     final phone = hasPhone ? phoneRaw : 'No phone';
+
+    final avatarUrl = partner.primaryImage != null && partner.primaryImage!.trim().isNotEmpty
+        ? partner.primaryImage
+        : (partner.images.isNotEmpty ? partner.images.first : null);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 17,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-            child: Text(
-              partner.businessName.isNotEmpty
-                  ? partner.businessName[0].toUpperCase()
-                  : 'P',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+          GestureDetector(
+            onTap: avatarUrl != null
+                ? () => _showImagePreview(context, ref, partner, avatarUrl)
+                : null,
+            child: MouseRegion(
+              cursor: avatarUrl != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+              child: CircleAvatar(
+                radius: 17,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl != null
+                    ? null
+                    : Text(
+                        partner.businessName.isNotEmpty
+                            ? partner.businessName[0].toUpperCase()
+                            : 'P',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -1026,4 +1089,160 @@ class _WhatsappIcon extends StatelessWidget {
       ],
     );
   }
+}
+
+class _StorePhotosCell extends ConsumerWidget {
+  const _StorePhotosCell({
+    required this.images,
+    required this.primaryImage,
+    required this.partner,
+  });
+
+  final List<String> images;
+  final String? primaryImage;
+  final PartnerRecord partner;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (images.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < images.length; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () => _showImagePreview(context, ref, partner, images[i]),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: images[i] == primaryImage ? AppColors.primary : AppColors.border,
+                      width: images[i] == primaryImage ? 1.5 : 1,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.network(
+                    images[i],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.broken_image,
+                      size: 12,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+void _showImagePreview(BuildContext context, WidgetRef ref, PartnerRecord partner, String url) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: InteractiveViewer(
+              maxScale: 3.0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(40),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.broken_image, size: 48, color: Colors.red),
+                        SizedBox(height: 10),
+                        Text('Could not load image preview'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Material(
+              color: Colors.black54,
+              shape: const CircleBorder(),
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 24,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final isPrimary = partner.primaryImage == url;
+                return FilledButton.icon(
+                  onPressed: isPrimary
+                      ? null
+                      : () async {
+                          try {
+                            final user = ref.read(authStateProvider).valueOrNull;
+                            if (user == null) throw Exception('User not authenticated');
+
+                            final repo = ref.read(partnersRepositoryProvider);
+                            await repo.updatePartnerImages(
+                              callerId: user.id,
+                              partnerId: partner.id,
+                              images: partner.images,
+                              primaryImage: url,
+                            );
+
+                            if (!context.mounted) return;
+                            ref.invalidate(partnersListProvider);
+                            Navigator.pop(context);
+                            AppSnackBar.success(context, 'Set as primary image successfully');
+                          } catch (e) {
+                            if (context.mounted) {
+                              AppSnackBar.actionFailed(context, 'set primary image', e);
+                            }
+                          }
+                        },
+                  icon: Icon(isPrimary ? Icons.star_rounded : Icons.star_outline_rounded),
+                  label: Text(isPrimary ? 'Primary Image' : 'Set as Primary'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isPrimary ? AppColors.success : AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

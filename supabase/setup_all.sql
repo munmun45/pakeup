@@ -153,6 +153,8 @@ CREATE TABLE IF NOT EXISTS partners (
                    CHECK (kyc_status IN ('pending', 'approved', 'rejected')),
   login_id         TEXT,
   pass             TEXT,
+  images           TEXT[] NOT NULL DEFAULT '{}',
+  primary_image    TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -699,6 +701,8 @@ BEGIN
         p.notes,
         p.is_active,
         p.kyc_status,
+        p.images,
+        p.primary_image,
         p.created_at
       FROM partners p
       LEFT JOIN partner_categories pc ON pc.slug = p.category
@@ -1034,3 +1038,69 @@ GRANT EXECUTE ON FUNCTION create_partner_category(TEXT, TEXT, TEXT)  TO anon, au
 GRANT EXECUTE ON FUNCTION update_partner_category(TEXT, UUID, TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION delete_partner_category(TEXT, UUID)        TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION set_partner_category_active(TEXT, UUID, BOOLEAN) TO anon, authenticated, service_role;
+
+-- ============================================================
+-- RPCs & STORAGE – PARTNER IMAGES
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION update_partner_images(
+  caller_id     TEXT,
+  partner_id    UUID,
+  images        TEXT[],
+  primary_image TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM assert_admin_partner_access(caller_id);
+
+  UPDATE partners SET
+    images = update_partner_images.images,
+    primary_image = nullif(trim(update_partner_images.primary_image), '')
+  WHERE id = partner_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partner not found';
+  END IF;
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_partner_images(TEXT, UUID, TEXT[], TEXT) TO anon, authenticated, service_role;
+
+-- Storage bucket creation for partner images
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'partner-images',
+  'partner-images',
+  true,
+  10485760, -- 10MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage policies for partner-images bucket
+DROP POLICY IF EXISTS "partner_images_public_read" ON storage.objects;
+CREATE POLICY "partner_images_public_read"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'partner-images');
+
+DROP POLICY IF EXISTS "partner_images_anon_insert" ON storage.objects;
+CREATE POLICY "partner_images_anon_insert"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'partner-images');
+
+DROP POLICY IF EXISTS "partner_images_anon_update" ON storage.objects;
+CREATE POLICY "partner_images_anon_update"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'partner-images')
+WITH CHECK (bucket_id = 'partner-images');
+
+DROP POLICY IF EXISTS "partner_images_anon_delete" ON storage.objects;
+CREATE POLICY "partner_images_anon_delete"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'partner-images');
