@@ -52,10 +52,10 @@ class AdminPages {
       pageKeys: [
         'partner_create_account',
         'add_partners',
-        'partner_categories',
         'partner_kyc',
         'partner_manage_accounts',
         'partner_services',
+        'partner_categories',
       ],
     ),
     AdminMenuGroup(

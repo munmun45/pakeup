@@ -115,7 +115,7 @@ class PartnerKycRepository {
 
   Future<List<PartnerAccountRecord>> listAccounts(String callerId) async {
     final result = await _client.rpc<dynamic>(
-      'list_partner_accounts',
+      'list_partner_bank_accounts',
       params: {'caller_id': callerId},
     );
     if (result == null) return [];
