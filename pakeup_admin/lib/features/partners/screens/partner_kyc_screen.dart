@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
@@ -17,6 +16,7 @@ import '../../../core/providers/header_search_provider.dart';
 import '../widgets/partner_kyc_documents_dialog.dart';
 import '../widgets/partner_kyc_form_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
+import '../../dashboard/widgets/header_search_bar.dart';
 import '../widgets/partner_table_widgets.dart';
 
 class PartnerKycScreen extends ConsumerWidget {
@@ -88,25 +88,37 @@ class PartnerKycScreen extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                PartnerStatsRow(
-                  chips: [
-                    PartnerStatChip(
-                      icon: Icons.pending_actions_rounded,
-                      label: 'Pending Review',
-                      value: '$pending',
-                      color: AppColors.warning,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: PartnerStatsRow(
+                        chips: [
+                          PartnerStatChip(
+                            icon: Icons.pending_actions_rounded,
+                            label: 'Pending Review',
+                            value: '$pending',
+                            color: AppColors.warning,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.verified_rounded,
+                            label: 'Approved',
+                            value: '$approved',
+                            color: AppColors.success,
+                          ),
+                          PartnerStatChip(
+                            icon: Icons.cancel_outlined,
+                            label: 'Rejected',
+                            value: '$rejected',
+                            color: AppColors.error,
+                          ),
+                        ],
+                      ),
                     ),
-                    PartnerStatChip(
-                      icon: Icons.verified_rounded,
-                      label: 'Approved',
-                      value: '$approved',
-                      color: AppColors.success,
-                    ),
-                    PartnerStatChip(
-                      icon: Icons.cancel_outlined,
-                      label: 'Rejected',
-                      value: '$rejected',
-                      color: AppColors.error,
+                    const SizedBox(width: 24),
+                    const SizedBox(
+                      width: 320,
+                      child: HeaderSearchBar(pageKey: 'partner_kyc'),
                     ),
                   ],
                 ),

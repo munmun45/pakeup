@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_service_models.dart';
 import '../providers/partner_services_provider.dart';
@@ -15,6 +14,7 @@ import '../widgets/partner_empty_state.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_service_form_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
+import '../../dashboard/widgets/header_search_bar.dart';
 import '../widgets/partner_table_widgets.dart';
 
 class PartnerServicesScreen extends ConsumerWidget {
@@ -109,6 +109,11 @@ class PartnerServicesScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 24),
+                    const SizedBox(
+                      width: 320,
+                      child: HeaderSearchBar(pageKey: 'partner_services'),
+                    ),
+                    const SizedBox(width: 16),
                     OutlinedButton.icon(
                       onPressed: () => _openForm(context, ref),
                       icon: const Icon(Icons.add_rounded, size: 18),

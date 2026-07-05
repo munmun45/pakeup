@@ -9,6 +9,7 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/page_access_chips.dart';
 import '../../shared/widgets/role_badge.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../dashboard/widgets/header_search_bar.dart';
 import '../data/admin_users_repository.dart';
 import '../providers/admin_users_provider.dart';
 
@@ -53,17 +54,27 @@ class ManageAdminsScreen extends ConsumerWidget {
           title: 'Admin Users',
           subtitle:
               'Create admin accounts and control which pages each user can access.',
-          action: FilledButton.icon(
-            onPressed: () => _openForm(context, ref),
-            icon: const Icon(Icons.person_add_rounded, size: 20),
-            label: const Text('Add Admin'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          action: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 320,
+                child: HeaderSearchBar(pageKey: AdminPages.manageAdminsKey),
               ),
-            ),
+              const SizedBox(width: 16),
+              FilledButton.icon(
+                onPressed: () => _openForm(context, ref),
+                icon: const Icon(Icons.person_add_rounded, size: 20),
+                label: const Text('Add Admin'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 24),

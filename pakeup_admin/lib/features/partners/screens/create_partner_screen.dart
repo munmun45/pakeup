@@ -7,12 +7,12 @@ import '../../../core/providers/header_search_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import '../../shared/widgets/section_header.dart';
 import '../data/partners_repository.dart';
 import '../providers/partners_provider.dart';
 import '../providers/partner_table_focus_provider.dart';
 import '../widgets/partner_parent_account_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
+import '../../dashboard/widgets/header_search_bar.dart';
 import '../widgets/partner_table_widgets.dart';
 import '../utils/partner_navigation.dart';
 
@@ -86,6 +86,11 @@ class CreatePartnerScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 24),
+                    const SizedBox(
+                      width: 320,
+                      child: HeaderSearchBar(pageKey: 'partner_create_account'),
+                    ),
+                    const SizedBox(width: 16),
                     FilledButton.icon(
                       onPressed: () => _openCreateDialog(context, ref),
                       icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),

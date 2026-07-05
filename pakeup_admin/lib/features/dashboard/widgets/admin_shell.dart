@@ -9,7 +9,6 @@ import '../../../core/router/page_transitions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/smooth_scroll_behavior.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import 'header_search_bar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../partners/providers/partner_table_focus_provider.dart';
 import '../../../core/providers/header_search_provider.dart';
@@ -226,72 +225,16 @@ class AdminShell extends ConsumerWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                title,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textPrimary,
-                                      fontSize: 22,
-                                    ),
-                              ),
-                              if (accountFilter != null) ...[
-                                const SizedBox(width: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: AppColors.primary.withValues(alpha: 0.25),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.filter_alt_outlined,
-                                        size: 14,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        accountFilter.ownerName,
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      GestureDetector(
-                                        onTap: () {
-                                          ref.read(partnerAccountStoreFilterProvider.notifier).state = null;
-                                          ref.read(partnerTableFocusProvider.notifier).state = null;
-                                          ref.read(headerSearchQueryProvider.notifier).state = '';
-                                        },
-                                        child: const MouseRegion(
-                                          cursor: SystemMouseCursors.click,
-                                          child: Icon(
-                                            Icons.close_rounded,
-                                            size: 14,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                          Text(
+                            title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                  fontSize: 22,
                                 ),
-                              ],
-                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -304,11 +247,57 @@ class AdminShell extends ConsumerWidget {
                         ],
                       ),
                       const Spacer(),
-                      SizedBox(
-                        width: 320,
-                        child: HeaderSearchBar(pageKey: currentPageKey),
-                      ),
-                      const SizedBox(width: 16),
+                      if (accountFilter != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.filter_alt_outlined,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                accountFilter.ownerName,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  ref.read(partnerAccountStoreFilterProvider.notifier).state = null;
+                                  ref.read(partnerTableFocusProvider.notifier).state = null;
+                                  ref.read(headerSearchQueryProvider.notifier).state = '';
+                                },
+                                child: const MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                      ],
                       _HeaderIconButton(
                         icon: Icons.refresh_rounded,
                         tooltip: 'Refresh page',

@@ -9,6 +9,7 @@ import '../data/partner_categories_repository.dart';
 import '../providers/partner_categories_provider.dart';
 import '../widgets/partner_form_field.dart';
 import '../widgets/partner_table_widgets.dart';
+import '../../dashboard/widgets/header_search_bar.dart';
 import '../../../core/providers/header_search_provider.dart';
 
 class ManagePartnerCategoriesScreen extends ConsumerWidget {
@@ -27,17 +28,27 @@ class ManagePartnerCategoriesScreen extends ConsumerWidget {
           title: 'Partner Categories',
           subtitle:
               'Manage categories shown in Add Partner — salon, spa, and custom types.',
-          action: FilledButton.icon(
-            onPressed: () => _openForm(context, ref),
-            icon: const Icon(Icons.add_rounded, size: 20),
-            label: const Text('Add Category'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          action: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 320,
+                child: HeaderSearchBar(pageKey: 'partner_categories'),
               ),
-            ),
+              const SizedBox(width: 16),
+              FilledButton.icon(
+                onPressed: () => _openForm(context, ref),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Add Category'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 24),

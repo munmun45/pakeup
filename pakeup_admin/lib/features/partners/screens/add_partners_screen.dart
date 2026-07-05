@@ -14,6 +14,7 @@ import '../widgets/partner_detail_dialog.dart';
 import '../widgets/partner_form_dialog.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_stat_chip.dart';
+import '../../dashboard/widgets/header_search_bar.dart';
 import '../widgets/partner_table_widgets.dart';
 
 class AddPartnersScreen extends ConsumerWidget {
@@ -96,6 +97,11 @@ class AddPartnersScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 24),
+                    const SizedBox(
+                      width: 320,
+                      child: HeaderSearchBar(pageKey: 'add_partners'),
+                    ),
+                    const SizedBox(width: 16),
                     FilledButton.icon(
                       onPressed: () => _openStoreForm(context, ref),
                       icon: const Icon(Icons.add_business_rounded, size: 20),
