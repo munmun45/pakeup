@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
+import '../../shared/widgets/image_preview_dialog.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
@@ -361,27 +362,51 @@ class _KycRow extends ConsumerWidget {
         children: [
           SizedBox(
             width: 220,
-            child: InkWell(
-              onTap: onView,
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    child: Text(
-                      row.businessName.isNotEmpty
-                          ? row.businessName[0].toUpperCase()
-                          : 'P',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+            child: Row(
+              children: [
+                MouseRegion(
+                  cursor: (row.primaryImage?.trim().isNotEmpty == true ||
+                          (row.images.isNotEmpty && row.images.first.trim().isNotEmpty))
+                      ? SystemMouseCursors.click
+                      : SystemMouseCursors.basic,
+                  child: GestureDetector(
+                    onTap: () {
+                      final img = row.primaryImage?.trim().isNotEmpty == true
+                          ? row.primaryImage!.trim()
+                          : (row.images.isNotEmpty ? row.images.first.trim() : null);
+                      if (img != null && img.isNotEmpty) {
+                        showImagePreviewDialog(context, img, title: row.businessName);
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      backgroundImage: (row.primaryImage?.trim().isNotEmpty == true)
+                          ? NetworkImage(row.primaryImage!.trim())
+                          : (row.images.isNotEmpty && row.images.first.trim().isNotEmpty)
+                              ? NetworkImage(row.images.first.trim())
+                              : null,
+                      child: (row.primaryImage?.trim().isNotEmpty == true ||
+                              (row.images.isNotEmpty && row.images.first.trim().isNotEmpty))
+                          ? null
+                          : Text(
+                              row.businessName.isNotEmpty
+                                  ? row.businessName[0].toUpperCase()
+                                  : 'P',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: onView,
+                    borderRadius: BorderRadius.circular(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -391,20 +416,46 @@ class _KycRow extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        Text(
-                          row.ownerName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.phone_outlined,
+                              size: 11,
+                              color: AppColors.textSecondary.withValues(alpha: 0.75),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(text: row.ownerName),
+                                    if (row.phone?.trim().isNotEmpty == true) ...[
+                                      const TextSpan(text: ' · '),
+                                      TextSpan(
+                                        text: row.phone!.trim(),
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           SizedBox(

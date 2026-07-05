@@ -48,9 +48,10 @@ class AdminShell extends ConsumerWidget {
           .toList();
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Row(
+    return SelectionArea(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Row(
         children: [
           Container(
             width: 272,
@@ -352,8 +353,9 @@ class AdminShell extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _breadcrumb(String pageKey) {
     final label = AdminPages.byKey(pageKey)?.label ?? title;

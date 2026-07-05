@@ -36,7 +36,7 @@ class _PartnerKycFormDialogState extends ConsumerState<PartnerKycFormDialog> {
   String? _propertyType;
   bool _loading = true;
   bool _submitting = false;
-  bool _kycSaved = false;
+  final bool _kycSaved = false;
 
   final Map<KycDocType, _LocalDoc> _docs = {
     for (final t in KycDocType.values)
@@ -253,10 +253,7 @@ class _PartnerKycFormDialogState extends ConsumerState<PartnerKycFormDialog> {
 
       if (mounted) {
         AppSnackBar.success(context, 'KYC documents submitted for review');
-        setState(() {
-          _submitting = false;
-          _kycSaved = true;
-        });
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {

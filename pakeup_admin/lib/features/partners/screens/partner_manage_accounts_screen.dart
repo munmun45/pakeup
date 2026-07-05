@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
+import '../../shared/widgets/image_preview_dialog.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
@@ -331,15 +332,41 @@ class _AccountRow extends ConsumerWidget {
               width: 220,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    child: Text(
-                      account.businessName.isNotEmpty ? account.businessName[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                  MouseRegion(
+                    cursor: (account.primaryImage?.trim().isNotEmpty == true ||
+                            (account.images.isNotEmpty && account.images.first.trim().isNotEmpty))
+                        ? SystemMouseCursors.click
+                        : SystemMouseCursors.basic,
+                    child: GestureDetector(
+                      onTap: () {
+                        final img = account.primaryImage?.trim().isNotEmpty == true
+                            ? account.primaryImage!.trim()
+                            : (account.images.isNotEmpty ? account.images.first.trim() : null);
+                        if (img != null && img.isNotEmpty) {
+                          showImagePreviewDialog(context, img, title: account.businessName);
+                        }
+                      },
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                        backgroundImage: (account.primaryImage?.trim().isNotEmpty == true)
+                            ? NetworkImage(account.primaryImage!.trim())
+                            : (account.images.isNotEmpty && account.images.first.trim().isNotEmpty)
+                                ? NetworkImage(account.images.first.trim())
+                                : null,
+                        child: (account.primaryImage?.trim().isNotEmpty == true ||
+                                (account.images.isNotEmpty && account.images.first.trim().isNotEmpty))
+                            ? null
+                            : Text(
+                                account.businessName.isNotEmpty
+                                    ? account.businessName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
                       ),
                     ),
                   ),

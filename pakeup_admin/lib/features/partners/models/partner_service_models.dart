@@ -7,6 +7,8 @@ class PartnerServiceRecord {
     this.description,
     required this.price,
     required this.durationMinutes,
+    this.primaryImage,
+    this.images = const [],
     this.isActive = true,
     this.createdAt,
   });
@@ -14,6 +16,8 @@ class PartnerServiceRecord {
   final String id;
   final String partnerId;
   final String partnerName;
+  final String? primaryImage;
+  final List<String> images;
   final String name;
   final String? description;
   final double price;
@@ -26,6 +30,11 @@ class PartnerServiceRecord {
       id: json['id'] as String,
       partnerId: json['partner_id'] as String,
       partnerName: json['partner_name'] as String? ?? '',
+      primaryImage: json['primary_image'] as String?,
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
       name: json['name'] as String,
       description: json['description'] as String?,
       price: _toDouble(json['price']),

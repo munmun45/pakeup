@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../shared/widgets/app_snackbar.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
@@ -67,16 +66,136 @@ class _PartnerKycDocumentsDialogState
     }
   }
 
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      if (mounted) {
-        AppSnackBar.error(context, 'Could not open document');
-      }
-    }
+  void _previewDocument(BuildContext context, String url, String title) {
+    final lowerUrl = url.toLowerCase();
+    final isPdf = lowerUrl.contains('.pdf');
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.transparent,
+              ),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 800,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  color: Colors.white,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        color: AppColors.background,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          color: Colors.black12,
+                          alignment: Alignment.center,
+                          child: isPdf
+                              ? const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.picture_as_pdf_rounded,
+                                      size: 64,
+                                      color: Colors.red,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'PDF Preview not supported inside the app.',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Please download or view it externally.',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : InteractiveViewer(
+                                  maxScale: 3.0,
+                                  child: Image.network(
+                                    url,
+                                    fit: BoxFit.contain,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const Center(child: CircularProgressIndicator());
+                                    },
+                                    errorBuilder: (context, error, stackTrace) => const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.broken_image, size: 48, color: Colors.red),
+                                        SizedBox(height: 10),
+                                        Text('Could not load image preview'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      if (isPdf)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          color: AppColors.background,
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.icon(
+                            onPressed: () async {
+                              final uri = Uri.tryParse(url);
+                              if (uri != null) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
+                            },
+                            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                            label: const Text('Open Externally'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<_DocEntry> _buildDocEntries(PartnerKycRecord? kyc) {
@@ -297,7 +416,7 @@ class _PartnerKycDocumentsDialogState
                                     _DocumentViewTile(
                                       entry: doc,
                                       onOpen: doc.url != null
-                                          ? () => _openUrl(doc.url!)
+                                          ? () => _previewDocument(context, doc.url!, doc.label)
                                           : null,
                                     ),
                                 ],
@@ -420,102 +539,108 @@ class _DocumentViewTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final uploaded = entry.isUploaded;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: uploaded
-            ? AppColors.success.withValues(alpha: 0.04)
-            : AppColors.background.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: uploaded
-              ? AppColors.success.withValues(alpha: 0.28)
-              : AppColors.border,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: (uploaded ? AppColors.success : AppColors.textSecondary)
-                  .withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              entry.icon,
-              size: 18,
-              color: uploaded ? AppColors.success : AppColors.textSecondary,
+    return MouseRegion(
+      cursor: uploaded && onOpen != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: uploaded ? onOpen : null,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: uploaded
+                ? AppColors.success.withValues(alpha: 0.04)
+                : AppColors.background.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: uploaded
+                  ? AppColors.success.withValues(alpha: 0.28)
+                  : AppColors.border,
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: (uploaded ? AppColors.success : AppColors.textSecondary)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                if (entry.subtitle != null) ...[
-                  const SizedBox(height: 1),
-                  Text(
-                    entry.subtitle!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 2),
-                Text(
-                  uploaded
-                      ? 'Uploaded'
-                      : entry.optional
-                          ? 'Not uploaded'
-                          : 'Missing — required',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: uploaded
-                        ? AppColors.success
-                        : entry.optional
-                            ? AppColors.textSecondary
-                            : AppColors.error,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (uploaded && onOpen != null)
-            FilledButton.tonalIcon(
-              onPressed: onOpen,
-              icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text('View'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                child: Icon(
+                  entry.icon,
+                  size: 18,
+                  color: uploaded ? AppColors.success : AppColors.textSecondary,
                 ),
               ),
-            )
-          else
-            Icon(
-              uploaded ? Icons.check_circle : Icons.remove_circle_outline,
-              size: 20,
-              color: uploaded
-                  ? AppColors.success
-                  : AppColors.textSecondary.withValues(alpha: 0.45),
-            ),
-        ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (entry.subtitle != null) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        entry.subtitle!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 2),
+                    Text(
+                      uploaded
+                          ? 'Uploaded'
+                          : entry.optional
+                              ? 'Not uploaded'
+                              : 'Missing — required',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: uploaded
+                            ? AppColors.success
+                            : entry.optional
+                                ? AppColors.textSecondary
+                                : AppColors.error,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (uploaded && onOpen != null)
+                FilledButton.tonalIcon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('View'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Icon(
+                  uploaded ? Icons.check_circle : Icons.remove_circle_outline,
+                  size: 20,
+                  color: uploaded
+                      ? AppColors.success
+                      : AppColors.textSecondary.withValues(alpha: 0.45),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -3,6 +3,9 @@ class PartnerKycOverviewRecord {
     required this.partnerId,
     required this.businessName,
     required this.ownerName,
+    this.phone,
+    this.primaryImage,
+    this.images = const [],
     this.isActive = true,
     this.kycStatus = 'pending',
     this.panNumber,
@@ -18,6 +21,9 @@ class PartnerKycOverviewRecord {
   final String partnerId;
   final String businessName;
   final String ownerName;
+  final String? phone;
+  final String? primaryImage;
+  final List<String> images;
   final bool isActive;
   final String kycStatus;
   final String? panNumber;
@@ -78,6 +84,12 @@ class PartnerKycOverviewRecord {
       partnerId: json['partner_id'] as String? ?? '',
       businessName: json['business_name'] as String? ?? '',
       ownerName: json['owner_name'] as String? ?? '',
+      phone: json['phone'] as String?,
+      primaryImage: json['primary_image'] as String?,
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
       isActive: json['is_active'] as bool? ?? true,
       kycStatus: json['kyc_status'] as String? ?? 'pending',
       panNumber: json['pan_number'] as String?,
@@ -109,6 +121,8 @@ class PartnerAccountRecord {
     required this.partnerId,
     required this.businessName,
     required this.ownerName,
+    this.primaryImage,
+    this.images = const [],
     this.isActive = true,
     this.accountStatus = 'pending',
     this.bankAccountHolder,
@@ -123,6 +137,8 @@ class PartnerAccountRecord {
   final String partnerId;
   final String businessName;
   final String ownerName;
+  final String? primaryImage;
+  final List<String> images;
   final bool isActive;
   final String accountStatus;
   final String? bankAccountHolder;
@@ -154,6 +170,11 @@ class PartnerAccountRecord {
       partnerId: json['partner_id'] as String? ?? '',
       businessName: json['business_name'] as String? ?? '',
       ownerName: json['owner_name'] as String? ?? '',
+      primaryImage: json['primary_image'] as String?,
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
       isActive: json['is_active'] as bool? ?? true,
       accountStatus: json['account_status'] as String? ?? 'pending',
       bankAccountHolder: json['bank_account_holder'] as String?,

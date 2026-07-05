@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
+import '../../shared/widgets/image_preview_dialog.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_service_models.dart';
 import '../providers/partner_services_provider.dart';
@@ -395,17 +396,41 @@ class _ServiceRow extends ConsumerWidget {
             flex: 2,
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  child: Text(
-                    service.partnerName.isNotEmpty
-                        ? service.partnerName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                MouseRegion(
+                  cursor: (service.primaryImage?.trim().isNotEmpty == true ||
+                          (service.images.isNotEmpty && service.images.first.trim().isNotEmpty))
+                      ? SystemMouseCursors.click
+                      : SystemMouseCursors.basic,
+                  child: GestureDetector(
+                    onTap: () {
+                      final img = service.primaryImage?.trim().isNotEmpty == true
+                          ? service.primaryImage!.trim()
+                          : (service.images.isNotEmpty ? service.images.first.trim() : null);
+                      if (img != null && img.isNotEmpty) {
+                        showImagePreviewDialog(context, img, title: service.partnerName);
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      backgroundImage: (service.primaryImage?.trim().isNotEmpty == true)
+                          ? NetworkImage(service.primaryImage!.trim())
+                          : (service.images.isNotEmpty && service.images.first.trim().isNotEmpty)
+                              ? NetworkImage(service.images.first.trim())
+                              : null,
+                      child: (service.primaryImage?.trim().isNotEmpty == true ||
+                              (service.images.isNotEmpty && service.images.first.trim().isNotEmpty))
+                          ? null
+                          : Text(
+                              service.partnerName.isNotEmpty
+                                  ? service.partnerName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
                     ),
                   ),
                 ),
