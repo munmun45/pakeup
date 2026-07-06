@@ -31,6 +31,9 @@ void refreshAdminPage(WidgetRef ref, String pageKey) {
     case 'partner_services':
       ref.invalidate(partnerServicesListProvider);
       ref.invalidate(partnersListProvider);
+    case 'partner_inventory':
+      ref.invalidate(partnerServicesListProvider);
+      ref.invalidate(partnersListProvider);
     case 'manage_admins':
       ref.invalidate(adminUsersListProvider);
     case 'profile':
