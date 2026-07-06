@@ -14,9 +14,17 @@ import '../../../core/providers/header_search_provider.dart';
 import '../widgets/partner_empty_state.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_service_form_dialog.dart';
+import '../widgets/partner_service_image_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
 import '../../dashboard/widgets/header_search_bar.dart';
 import '../widgets/partner_table_widgets.dart';
+
+const _tableHeaderStyle = TextStyle(
+  fontSize: 11,
+  fontWeight: FontWeight.w800,
+  letterSpacing: 1.2,
+  color: AppColors.textSecondary,
+);
 
 class PartnerServicesScreen extends ConsumerWidget {
   const PartnerServicesScreen({super.key});
@@ -169,14 +177,14 @@ class PartnerServicesScreen extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 11,
+                              vertical: 14,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.09),
+                              color: const Color(0xFFFBF9FA),
                               border: Border(
                                 bottom: BorderSide(
-                                  color: AppColors.primary
-                                      .withValues(alpha: 0.18),
+                                  color: AppColors.border.withValues(alpha: 0.8),
+                                  width: 1.2,
                                 ),
                               ),
                             ),
@@ -186,43 +194,43 @@ class PartnerServicesScreen extends ConsumerWidget {
                                   flex: 2,
                                   child: Text(
                                     'PARTNER',
-                                    style: partnerTableHeaderStyle,
+                                    style: _tableHeaderStyle,
                                   ),
                                 ),
                                 Expanded(
                                   flex: 2,
                                   child: Text(
                                     'SERVICE',
-                                    style: partnerTableHeaderStyle,
+                                    style: _tableHeaderStyle,
                                   ),
                                 ),
                                 SizedBox(
-                                  width: 80,
+                                  width: 100,
                                   child: Text(
                                     'PRICE',
-                                    style: partnerTableHeaderStyle,
+                                    style: _tableHeaderStyle,
                                   ),
                                 ),
                                 SizedBox(
-                                  width: 72,
+                                  width: 90,
                                   child: Text(
                                     'DURATION',
-                                    style: partnerTableHeaderStyle,
+                                    style: _tableHeaderStyle,
                                   ),
                                 ),
                                 SizedBox(
                                   width: 90,
                                   child: Text(
                                     'STATUS',
-                                    style: partnerTableHeaderStyle,
+                                    style: _tableHeaderStyle,
                                   ),
                                 ),
                                 Spacer(),
                                 SizedBox(
-                                  width: 100,
+                                  width: 132,
                                   child: Text(
                                     'ACTIONS',
-                                    style: partnerTableHeaderStyle,
+                                    style: _tableHeaderStyle,
                                     textAlign: TextAlign.right,
                                   ),
                                 ),
@@ -236,12 +244,17 @@ class PartnerServicesScreen extends ConsumerWidget {
                               onEdit: () => _openForm(
                                 context,
                                 ref,
-                                existing: services[i],
+                                existing: visible[i],
+                              ),
+                              onManageImage: () => _openServiceImageDialog(
+                                context,
+                                ref,
+                                visible[i],
                               ),
                               onDelete: () =>
-                                  _delete(context, ref, services[i]),
+                                  _delete(context, ref, visible[i]),
                               onToggle: () =>
-                                  _toggleActive(context, ref, services[i]),
+                                  _toggleActive(context, ref, visible[i]),
                             ),
                         ],
                       ),
@@ -254,6 +267,21 @@ class PartnerServicesScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _openServiceImageDialog(
+    BuildContext context,
+    WidgetRef ref,
+    PartnerServiceRecord service,
+  ) async {
+    final changed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PartnerServiceImageDialog(service: service),
+    );
+    if (changed == true) {
+      ref.invalidate(partnerServicesListProvider);
+    }
   }
 
   Future<void> _openForm(
@@ -295,6 +323,28 @@ class PartnerServicesScreen extends ConsumerWidget {
       isFeatured: service.isFeatured,
       prepInstructions: service.prepInstructions,
       isActive: !service.isActive,
+      isParlourAvailable: service.isParlourAvailable,
+      parlourPrice: service.parlourPrice,
+      parlourDurationMinutes: service.parlourDurationMinutes,
+      parlourTargetGender: service.parlourTargetGender,
+      parlourPriceMen: service.parlourPriceMen,
+      parlourDurationMen: service.parlourDurationMen,
+      parlourPriceWomen: service.parlourPriceWomen,
+      parlourDurationWomen: service.parlourDurationWomen,
+      parlourPrepMen: service.parlourPrepMen,
+      parlourPrepWomen: service.parlourPrepWomen,
+      isHomeAvailable: service.isHomeAvailable,
+      homePrice: service.homePrice,
+      homeDurationMinutes: service.homeDurationMinutes,
+      homeTargetGender: service.homeTargetGender,
+      homePriceMen: service.homePriceMen,
+      homeDurationMen: service.homeDurationMen,
+      homePriceWomen: service.homePriceWomen,
+      homeDurationWomen: service.homeDurationWomen,
+      homePrepMen: service.homePrepMen,
+      homePrepWomen: service.homePrepWomen,
+      freeRadiusKm: service.freeRadiusKm,
+      perKmCharge: service.perKmCharge,
     );
 
     try {
@@ -377,6 +427,7 @@ class _ServiceRow extends ConsumerWidget {
     required this.service,
     required this.isLast,
     required this.onEdit,
+    required this.onManageImage,
     required this.onDelete,
     required this.onToggle,
   });
@@ -384,281 +435,549 @@ class _ServiceRow extends ConsumerWidget {
   final PartnerServiceRecord service;
   final bool isLast;
   final VoidCallback onEdit;
+  final VoidCallback onManageImage;
   final VoidCallback onDelete;
   final VoidCallback onToggle;
 
+  Widget _buildImagePlaceholder() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Icon(
+        Icons.spa_outlined,
+        size: 20,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                MouseRegion(
-                  cursor: (service.primaryImage?.trim().isNotEmpty == true ||
-                          (service.images.isNotEmpty && service.images.first.trim().isNotEmpty))
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.basic,
-                  child: GestureDetector(
-                    onTap: () {
-                      final img = service.primaryImage?.trim().isNotEmpty == true
-                          ? service.primaryImage!.trim()
-                          : (service.images.isNotEmpty ? service.images.first.trim() : null);
-                      if (img != null && img.isNotEmpty) {
-                        showImagePreviewDialog(context, img, title: service.partnerName);
-                      }
-                    },
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                      backgroundImage: (service.primaryImage?.trim().isNotEmpty == true)
-                          ? NetworkImage(service.primaryImage!.trim())
-                          : (service.images.isNotEmpty && service.images.first.trim().isNotEmpty)
-                              ? NetworkImage(service.images.first.trim())
-                              : null,
-                      child: (service.primaryImage?.trim().isNotEmpty == true ||
-                              (service.images.isNotEmpty && service.images.first.trim().isNotEmpty))
-                          ? null
-                          : Text(
-                              service.partnerName.isNotEmpty
-                                  ? service.partnerName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        service.partnerName,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.phone_outlined,
-                            size: 11,
-                            color: AppColors.textSecondary.withValues(alpha: 0.75),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(text: service.ownerName ?? '—'),
-                                  if (service.phone?.trim().isNotEmpty == true) ...[
-                                    const TextSpan(text: ' · '),
-                                    TextSpan(
-                                      text: service.phone!.trim(),
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    // If only women configurations are enabled anywhere, mark it as female
+    final hasMen = (service.isParlourAvailable && service.parlourPriceMen != null) || 
+                   (service.isHomeAvailable && service.homePriceMen != null);
+    final hasWomen = (service.isParlourAvailable && service.parlourPriceWomen != null) || 
+                     (service.isHomeAvailable && service.homePriceWomen != null);
+
+    final isFemale = hasWomen && !hasMen;
+    final isMale = hasMen && !hasWomen;
+
+    final genderIcon = isFemale
+        ? Icons.female_rounded
+        : (isMale ? Icons.male_rounded : Icons.wc_rounded);
+
+    final String genderLabel;
+    final List<String> genders = [];
+    if (service.isParlourAvailable) {
+      final parlourGenders = [];
+      if (service.parlourPriceMen != null) parlourGenders.add('Men');
+      if (service.parlourPriceWomen != null) parlourGenders.add('Women');
+      genders.add('Salon: ${parlourGenders.isEmpty ? 'Unisex' : parlourGenders.join('/')}');
+    }
+    if (service.isHomeAvailable) {
+      final homeGenders = [];
+      if (service.homePriceMen != null) homeGenders.add('Men');
+      if (service.homePriceWomen != null) homeGenders.add('Women');
+      genders.add('Home: ${homeGenders.isEmpty ? 'Unisex' : homeGenders.join('/')}');
+    }
+    genderLabel = genders.isEmpty ? 'Unisex' : genders.join(' · ');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onEdit,
+        hoverColor: AppColors.primary.withValues(alpha: 0.015),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            border: isLast
+                ? null
+                : const Border(bottom: BorderSide(color: AppColors.border)),
           ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                if (service.serviceImage?.trim().isNotEmpty == true) ...[
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () => showImagePreviewDialog(context, service.serviceImage!.trim(), title: service.name),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          service.serviceImage!.trim(),
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const SizedBox(),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // PARTNER column
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    MouseRegion(
+                      cursor: (service.partnerPrimaryImage?.trim().isNotEmpty == true ||
+                              (service.partnerImages.isNotEmpty && service.partnerImages.first.trim().isNotEmpty))
+                          ? SystemMouseCursors.click
+                          : SystemMouseCursors.basic,
+                      child: GestureDetector(
+                        onTap: () {
+                          final img = service.partnerPrimaryImage?.trim().isNotEmpty == true
+                              ? service.partnerPrimaryImage!.trim()
+                              : (service.partnerImages.isNotEmpty ? service.partnerImages.first.trim() : null);
+                          if (img != null && img.isNotEmpty) {
+                            showImagePreviewDialog(context, img, title: service.partnerName);
+                          }
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.border,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                            backgroundImage: (service.partnerPrimaryImage?.trim().isNotEmpty == true)
+                                ? NetworkImage(service.partnerPrimaryImage!.trim())
+                                : (service.partnerImages.isNotEmpty && service.partnerImages.first.trim().isNotEmpty)
+                                    ? NetworkImage(service.partnerImages.first.trim())
+                                    : null,
+                            child: (service.partnerPrimaryImage?.trim().isNotEmpty == true ||
+                                    (service.partnerImages.isNotEmpty && service.partnerImages.first.trim().isNotEmpty))
+                                ? null
+                                : Text(
+                                    service.partnerName.isNotEmpty
+                                        ? service.partnerName[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              service.name,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              service.category,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${service.targetGender} · ${service.serviceLocation}',
+                            service.partnerName,
                             style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                              color: AppColors.textPrimary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_outline,
+                                size: 12,
+                                color: AppColors.textSecondary.withValues(alpha: 0.75),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                service.ownerName ?? '—',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              if (service.phone?.trim().isNotEmpty == true) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 3,
+                                  height: 3,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.phone_enabled_outlined,
+                                  size: 11,
+                                  color: AppColors.primary.withValues(alpha: 0.8),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  service.phone!.trim(),
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
-                      if (service.description?.trim().isNotEmpty == true) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          service.description!,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
+                    ),
+                  ],
+                ),
+              ),
+              
+              // SERVICE column
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Builder(
+                      builder: (context) {
+                        final displayImg = (service.primaryImage?.trim().isNotEmpty == true)
+                            ? service.primaryImage!.trim()
+                            : (service.serviceImage?.trim().isNotEmpty == true
+                                ? service.serviceImage!.trim()
+                                : (service.images.isNotEmpty ? service.images.first.trim() : null));
+
+                        return MouseRegion(
+                          cursor: (displayImg != null && displayImg.isNotEmpty)
+                              ? SystemMouseCursors.click
+                              : SystemMouseCursors.basic,
+                          child: GestureDetector(
+                            onTap: (displayImg != null && displayImg.isNotEmpty)
+                                ? () => showImagePreviewDialog(context, displayImg, title: service.name)
+                                : null,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: (displayImg != null && displayImg.isNotEmpty)
+                                  ? Image.network(
+                                      displayImg,
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+                                    )
+                                  : _buildImagePlaceholder(),
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            service.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppColors.secondary.withValues(alpha: 0.15),
+                                  ),
+                                ),
+                                child: Text(
+                                  service.category,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.secondary,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                genderIcon, 
+                                size: 12, 
+                                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                genderLabel,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 3,
+                                height: 3,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.location_on_outlined,
+                                size: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                service.serviceLocation == 'At Home'
+                                    ? 'At Home (Radius: ${service.freeRadiusKm}km · ₹${service.perKmCharge.toStringAsFixed(0)}/km)'
+                                    : (service.serviceLocation == 'Both'
+                                        ? 'Salon & Home (Radius: ${service.freeRadiusKm}km · ₹${service.perKmCharge.toStringAsFixed(0)}/km)'
+                                        : 'At Salon Only'),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            service.description ?? 'No description provided.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary.withValues(alpha: 0.85),
+                              fontSize: 11.5,
+                              fontStyle: service.description == null ? FontStyle.italic : FontStyle.normal,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // PRICE column
+              SizedBox(
+                width: 100,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (service.isParlourAvailable) ...[
+                      if (service.parlourPriceMen != null)
+                        Text(
+                          'Salon (M): ₹${service.parlourPriceMen!.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      if (service.parlourPriceWomen != null) ...[
+                        if (service.parlourPriceMen != null) const SizedBox(height: 2),
+                        Text(
+                          'Salon (F): ₹${service.parlourPriceWomen!.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ],
                     ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 90,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (service.discountPrice != null) ...[
-                  Row(
-                    children: [
-                      Text(
-                        '₹${service.discountPrice!.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                    if (service.isHomeAvailable) ...[
+                      if (service.isParlourAvailable) const SizedBox(height: 4),
+                      if (service.homePriceMen != null)
+                        Text(
+                          'Home (M): ₹${service.homePriceMen!.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
+                      if (service.homePriceWomen != null) ...[
+                        if (service.homePriceMen != null) const SizedBox(height: 2),
+                        Text(
+                          'Home (F): ₹${service.homePriceWomen!.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ],
+                    if (!service.isParlourAvailable && !service.isHomeAvailable)
                       Text(
                         '₹${service.price.toStringAsFixed(0)}',
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                          decoration: TextDecoration.lineThrough,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                  ],
+                ),
+              ),
+              
+              // DURATION column
+              SizedBox(
+                width: 90,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (service.isParlourAvailable) ...[
+                      if (service.parlourDurationMen != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.storefront_outlined, size: 10, color: AppColors.textSecondary),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Men: ${service.parlourDurationMen}m',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (service.parlourDurationWomen != null) ...[
+                        if (service.parlourDurationMen != null) const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.storefront_outlined, size: 10, color: AppColors.textSecondary),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Women: ${service.parlourDurationWomen}m',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ),
-                ] else
-                  Text(
-                    '₹${service.price.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                    if (service.isHomeAvailable) ...[
+                      if (service.isParlourAvailable) const SizedBox(height: 4),
+                      if (service.homeDurationMen != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.home_outlined, size: 10, color: AppColors.textSecondary),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Men: ${service.homeDurationMen}m',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (service.homeDurationWomen != null) ...[
+                        if (service.homeDurationMen != null) const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.home_outlined, size: 10, color: AppColors.textSecondary),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Women: ${service.homeDurationWomen}m',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                    if (!service.isParlourAvailable && !service.isHomeAvailable)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.access_time_rounded, size: 11, color: AppColors.textSecondary),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${service.durationMinutes}m',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              
+              // STATUS column
+              SizedBox(
+                width: 90,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: PartnerStatusBadge(isActive: service.isActive),
+                ),
+              ),
+              
+              const Spacer(),
+              
+              // ACTIONS column
+              SizedBox(
+                width: 132,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    PartnerTableAction(
+                      icon: Icons.edit_outlined,
+                      tooltip: 'Edit',
+                      color: AppColors.primary,
+                      onPressed: onEdit,
                     ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 72,
-            child: Text(
-              '${service.durationMinutes} min',
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
-          SizedBox(
-            width: 90,
-            child: PartnerStatusBadge(isActive: service.isActive),
-          ),
-          const Spacer(),
-          SizedBox(
-            width: 100,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                PartnerTableAction(
-                  icon: Icons.edit_outlined,
-                  tooltip: 'Edit',
-                  color: AppColors.primary,
-                  onPressed: onEdit,
+                    const SizedBox(width: 4),
+                    PartnerTableAction(
+                      icon: Icons.image_outlined,
+                      tooltip: 'Manage Images',
+                      color: AppColors.secondary,
+                      onPressed: onManageImage,
+                    ),
+                    const SizedBox(width: 4),
+                    PartnerTableAction(
+                      icon: service.isActive
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      tooltip: service.isActive ? 'Deactivate' : 'Activate',
+                      color: AppColors.warning,
+                      onPressed: onToggle,
+                    ),
+                    const SizedBox(width: 4),
+                    PartnerTableAction(
+                      icon: Icons.delete_outline,
+                      tooltip: 'Delete',
+                      color: AppColors.error,
+                      onPressed: onDelete,
+                    ),
+                  ],
                 ),
-                PartnerTableAction(
-                  icon: service.isActive
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  tooltip: service.isActive ? 'Deactivate' : 'Activate',
-                  color: AppColors.warning,
-                  onPressed: onToggle,
-                ),
-                PartnerTableAction(
-                  icon: Icons.delete_outline,
-                  tooltip: 'Delete',
-                  color: AppColors.error,
-                  onPressed: onDelete,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

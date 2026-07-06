@@ -157,6 +157,7 @@ class PartnerFormDropdown<T> extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
+    this.compact = false,
   });
 
   final String label;
@@ -164,26 +165,27 @@ class PartnerFormDropdown<T> extends StatelessWidget {
   final T value;
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?> onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: compact ? 10 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           PartnerFieldLabel(icon: icon, label: label),
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 5 : 8),
           DropdownButtonFormField<T>(
             initialValue: value,
             items: items,
             onChanged: onChanged,
             isExpanded: true,
-            style: const TextStyle(
-              fontSize: 14,
+            style: TextStyle(
+              fontSize: compact ? 13 : 14,
               color: AppColors.textPrimary,
             ),
-            decoration: PartnerFormField.fieldDecoration(),
+            decoration: PartnerFormField.fieldDecoration(compact: compact),
             borderRadius: BorderRadius.circular(10),
             icon: const Icon(Icons.keyboard_arrow_down_rounded),
           ),

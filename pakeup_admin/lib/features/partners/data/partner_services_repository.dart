@@ -62,6 +62,23 @@ class PartnerServicesRepository {
     );
   }
 
+  Future<void> updateServiceImages({
+    required String callerId,
+    required String serviceId,
+    required List<String> images,
+    required String? primaryImage,
+  }) async {
+    await _client.rpc(
+      'update_partner_service_images',
+      params: {
+        'caller_id': callerId,
+        'service_id': serviceId,
+        'images': images,
+        'primary_image': primaryImage,
+      },
+    );
+  }
+
   Future<String> uploadServiceImage({
     required String partnerId,
     required String localPath,
@@ -96,9 +113,27 @@ class PartnerServicesRepository {
     if (decoded == null) {
       return bytes;
     }
-    // Resize image to width 600, maintaining aspect ratio
-    final resized = img.copyResize(decoded, width: 600);
-    // Compress to JPEG with 82% quality to target 20-40KB
-    return Uint8List.fromList(img.encodeJpg(resized, quality: 82));
+
+    // Resize image if it exceeds 800px in either dimension
+    img.Image resized = decoded;
+    const maxDimension = 800;
+    if (decoded.width > maxDimension || decoded.height > maxDimension) {
+      if (decoded.width > decoded.height) {
+        resized = img.copyResize(decoded, width: maxDimension);
+      } else {
+        resized = img.copyResize(decoded, height: maxDimension);
+      }
+    }
+
+    // Compress iteratively to target 20KB - 40KB in JPEG format
+    int quality = 75;
+    List<int> compressed = img.encodeJpg(resized, quality: quality);
+    
+    while (compressed.length > 45 * 1024 && quality > 15) {
+      quality -= 10;
+      compressed = img.encodeJpg(resized, quality: quality);
+    }
+    
+    return Uint8List.fromList(compressed);
   }
 }
