@@ -55,6 +55,7 @@ class AdminPages {
         'partner_kyc',
         'partner_manage_accounts',
         'partner_services',
+        'partner_inventory',
         'partner_categories',
       ],
     ),
@@ -182,6 +183,13 @@ class AdminPages {
       label: 'Partner Services',
       icon: Icons.spa_rounded,
       route: '/partners/services',
+      group: 'partners',
+    ),
+    AdminPageDef(
+      key: 'partner_inventory',
+      label: 'Inventory',
+      icon: Icons.inventory_2_rounded,
+      route: '/partners/inventory',
       group: 'partners',
     ),
     AdminPageDef(

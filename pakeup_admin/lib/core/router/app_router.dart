@@ -9,6 +9,7 @@ import '../../features/dashboard/widgets/admin_shell.dart';
 import '../../features/partners/screens/add_partners_screen.dart';
 import '../../features/partners/screens/create_partner_screen.dart';
 import '../../features/partners/screens/manage_partner_categories_screen.dart';
+import '../../features/partners/screens/partner_inventory_screen.dart';
 import '../../features/partners/screens/partner_kyc_screen.dart';
 import '../../features/partners/screens/partner_manage_accounts_screen.dart';
 import '../../features/partners/screens/partner_services_screen.dart';
@@ -144,6 +145,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               child: const PartnerServicesScreen(),
             ),
           ),
+          GoRoute(
+            path: '/partners/inventory',
+            pageBuilder: (context, state) => buildAdminPage(
+              state: state,
+              child: const PartnerInventoryScreen(),
+            ),
+          ),
           for (final page in AdminPages.all)
             if (page.route != null &&
                 page.route != '/dashboard' &&
@@ -153,7 +161,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 page.key != 'partner_categories' &&
                 page.key != 'partner_kyc' &&
                 page.key != 'partner_manage_accounts' &&
-                page.key != 'partner_services')
+                page.key != 'partner_services' &&
+                page.key != 'partner_inventory')
               GoRoute(
                 path: page.route!,
                 pageBuilder: (context, state) => buildAdminPage(
