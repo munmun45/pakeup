@@ -25,27 +25,33 @@ class PartnerServicesRepository {
         .toList();
   }
 
-  Future<void> createService({
+  Future<PartnerServiceRecord> createService({
     required String callerId,
     required PartnerServiceFormData data,
   }) async {
-    await _client.rpc(
+    final result = await _client.rpc(
       'create_partner_service',
       params: {'caller_id': callerId, ...data.toCreateParams()},
     );
+    return PartnerServiceRecord.fromJson(
+      Map<String, dynamic>.from(result as Map),
+    );
   }
 
-  Future<void> updateService({
+  Future<PartnerServiceRecord> updateService({
     required String callerId,
     required String serviceId,
     required PartnerServiceFormData data,
   }) async {
-    await _client.rpc(
+    final result = await _client.rpc(
       'update_partner_service',
       params: {
         'caller_id': callerId,
         ...data.toUpdateParams(serviceId),
       },
+    );
+    return PartnerServiceRecord.fromJson(
+      Map<String, dynamic>.from(result as Map),
     );
   }
 

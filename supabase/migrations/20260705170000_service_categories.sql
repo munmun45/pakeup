@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS service_categories (
 
 -- 2. Seed with the existing hard-coded service categories from the app
 INSERT INTO service_categories (name, slug, sort_order) VALUES
-  ('Hair Styling',          'hair_styling',          1),
+  ('Hair Styling',          'hair_styling',           1),
   ('Hair Treatment',        'hair_treatment',         2),
   ('Makeup',                'makeup',                 3),
   ('Facial & Skin Care',    'facial_skin_care',       4),

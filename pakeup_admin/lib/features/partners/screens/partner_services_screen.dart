@@ -14,7 +14,6 @@ import '../../../core/providers/header_search_provider.dart';
 import '../widgets/partner_empty_state.dart';
 import '../widgets/partner_hub_nav.dart';
 import '../widgets/partner_service_form_dialog.dart';
-import '../widgets/partner_service_image_dialog.dart';
 import '../widgets/partner_stat_chip.dart';
 import '../../dashboard/widgets/header_search_bar.dart';
 import '../widgets/partner_table_widgets.dart';
@@ -191,30 +190,16 @@ class PartnerServicesScreen extends ConsumerWidget {
                             child: Row(
                               children: const [
                                 Expanded(
-                                  flex: 2,
+                                  flex: 3,
                                   child: Text(
                                     'PARTNER',
                                     style: _tableHeaderStyle,
                                   ),
                                 ),
                                 Expanded(
-                                  flex: 2,
+                                  flex: 4,
                                   child: Text(
                                     'SERVICE',
-                                    style: _tableHeaderStyle,
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 100,
-                                  child: Text(
-                                    'PRICE',
-                                    style: _tableHeaderStyle,
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 90,
-                                  child: Text(
-                                    'DURATION',
                                     style: _tableHeaderStyle,
                                   ),
                                 ),
@@ -227,7 +212,7 @@ class PartnerServicesScreen extends ConsumerWidget {
                                 ),
                                 Spacer(),
                                 SizedBox(
-                                  width: 132,
+                                  width: 100,
                                   child: Text(
                                     'ACTIONS',
                                     style: _tableHeaderStyle,
@@ -245,11 +230,6 @@ class PartnerServicesScreen extends ConsumerWidget {
                                 context,
                                 ref,
                                 existing: visible[i],
-                              ),
-                              onManageImage: () => _openServiceImageDialog(
-                                context,
-                                ref,
-                                visible[i],
                               ),
                               onDelete: () =>
                                   _delete(context, ref, visible[i]),
@@ -269,20 +249,7 @@ class PartnerServicesScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openServiceImageDialog(
-    BuildContext context,
-    WidgetRef ref,
-    PartnerServiceRecord service,
-  ) async {
-    final changed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PartnerServiceImageDialog(service: service),
-    );
-    if (changed == true) {
-      ref.invalidate(partnerServicesListProvider);
-    }
-  }
+
 
   Future<void> _openForm(
     BuildContext context,
@@ -427,7 +394,6 @@ class _ServiceRow extends ConsumerWidget {
     required this.service,
     required this.isLast,
     required this.onEdit,
-    required this.onManageImage,
     required this.onDelete,
     required this.onToggle,
   });
@@ -435,7 +401,6 @@ class _ServiceRow extends ConsumerWidget {
   final PartnerServiceRecord service;
   final bool isLast;
   final VoidCallback onEdit;
-  final VoidCallback onManageImage;
   final VoidCallback onDelete;
   final VoidCallback onToggle;
 
@@ -504,7 +469,7 @@ class _ServiceRow extends ConsumerWidget {
             children: [
               // PARTNER column
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: Row(
                   children: [
                     MouseRegion(
@@ -622,7 +587,7 @@ class _ServiceRow extends ConsumerWidget {
               
               // SERVICE column
               Expanded(
-                flex: 2,
+                flex: 4,
                 child: Row(
                   children: [
                     Builder(
@@ -761,169 +726,7 @@ class _ServiceRow extends ConsumerWidget {
                 ),
               ),
               
-              // PRICE column
-              SizedBox(
-                width: 100,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (service.isParlourAvailable) ...[
-                      if (service.parlourPriceMen != null)
-                        Text(
-                          'Salon (M): ₹${service.parlourPriceMen!.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      if (service.parlourPriceWomen != null) ...[
-                        if (service.parlourPriceMen != null) const SizedBox(height: 2),
-                        Text(
-                          'Salon (F): ₹${service.parlourPriceWomen!.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ],
-                    if (service.isHomeAvailable) ...[
-                      if (service.isParlourAvailable) const SizedBox(height: 4),
-                      if (service.homePriceMen != null)
-                        Text(
-                          'Home (M): ₹${service.homePriceMen!.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      if (service.homePriceWomen != null) ...[
-                        if (service.homePriceMen != null) const SizedBox(height: 2),
-                        Text(
-                          'Home (F): ₹${service.homePriceWomen!.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ],
-                    if (!service.isParlourAvailable && !service.isHomeAvailable)
-                      Text(
-                        '₹${service.price.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              
-              // DURATION column
-              SizedBox(
-                width: 90,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (service.isParlourAvailable) ...[
-                      if (service.parlourDurationMen != null)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.storefront_outlined, size: 10, color: AppColors.textSecondary),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Men: ${service.parlourDurationMen}m',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (service.parlourDurationWomen != null) ...[
-                        if (service.parlourDurationMen != null) const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.storefront_outlined, size: 10, color: AppColors.textSecondary),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Women: ${service.parlourDurationWomen}m',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                    if (service.isHomeAvailable) ...[
-                      if (service.isParlourAvailable) const SizedBox(height: 4),
-                      if (service.homeDurationMen != null)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.home_outlined, size: 10, color: AppColors.textSecondary),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Men: ${service.homeDurationMen}m',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (service.homeDurationWomen != null) ...[
-                        if (service.homeDurationMen != null) const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.home_outlined, size: 10, color: AppColors.textSecondary),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Women: ${service.homeDurationWomen}m',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                    if (!service.isParlourAvailable && !service.isHomeAvailable)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.access_time_rounded, size: 11, color: AppColors.textSecondary),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${service.durationMinutes}m',
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
+
               
               // STATUS column
               SizedBox(
@@ -939,7 +742,7 @@ class _ServiceRow extends ConsumerWidget {
               
               // ACTIONS column
               SizedBox(
-                width: 132,
+                width: 100,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -948,13 +751,6 @@ class _ServiceRow extends ConsumerWidget {
                       tooltip: 'Edit',
                       color: AppColors.primary,
                       onPressed: onEdit,
-                    ),
-                    const SizedBox(width: 4),
-                    PartnerTableAction(
-                      icon: Icons.image_outlined,
-                      tooltip: 'Manage Images',
-                      color: AppColors.secondary,
-                      onPressed: onManageImage,
                     ),
                     const SizedBox(width: 4),
                     PartnerTableAction(

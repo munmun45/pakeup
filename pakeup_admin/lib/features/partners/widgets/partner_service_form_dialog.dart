@@ -1,5 +1,5 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -28,35 +28,15 @@ class _PartnerServiceFormDialogState
   
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
-  late final TextEditingController _parlourPriceMenCtrl;
-  late final TextEditingController _parlourDurationMenCtrl;
-  late final TextEditingController _parlourPriceWomenCtrl;
-  late final TextEditingController _parlourDurationWomenCtrl;
-  late final TextEditingController _parlourPrepMenCtrl;
-  late final TextEditingController _parlourPrepWomenCtrl;
-  late final TextEditingController _homePriceMenCtrl;
-  late final TextEditingController _homeDurationMenCtrl;
-  late final TextEditingController _homePriceWomenCtrl;
-  late final TextEditingController _homeDurationWomenCtrl;
-  late final TextEditingController _homePrepMenCtrl;
-  late final TextEditingController _homePrepWomenCtrl;
-  late final TextEditingController _freeRadiusCtrl;
-  late final TextEditingController _perKmChargeCtrl;
 
   String? _partnerId;
   String _category = 'Others';
   
-  bool _isParlourAvailable = false;
-  bool _isParlourMenEnabled = false;
-  bool _isParlourWomenEnabled = false;
-  
-  bool _isHomeAvailable = false;
-  bool _isHomeMenEnabled = false;
-  bool _isHomeWomenEnabled = false;
-
-  String? _serviceImageUrl;
+  List<String> _images = [];
+  String? _primaryImage;
   bool _isActive = true;
   bool _submitting = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -65,104 +45,78 @@ class _PartnerServiceFormDialogState
     
     _nameCtrl = TextEditingController(text: e?.name ?? '');
     _descCtrl = TextEditingController(text: e?.description ?? '');
-    
-    _isParlourAvailable = e?.isParlourAvailable ?? false;
-    _isParlourMenEnabled = e != null ? (e.parlourPriceMen != null) : false;
-    _isParlourWomenEnabled = e != null ? (e.parlourPriceWomen != null) : false;
-
-    _isHomeAvailable = e?.isHomeAvailable ?? false;
-    _isHomeMenEnabled = e != null ? (e.homePriceMen != null) : false;
-    _isHomeWomenEnabled = e != null ? (e.homePriceWomen != null) : false;
-
-    _parlourPriceMenCtrl = TextEditingController(
-      text: e?.parlourPriceMen?.toStringAsFixed(0) ?? (e != null && e.isParlourAvailable ? e.price.toStringAsFixed(0) : ''),
-    );
-    _parlourDurationMenCtrl = TextEditingController(
-      text: e?.parlourDurationMen?.toString() ?? (e != null && e.isParlourAvailable ? e.durationMinutes.toString() : '30'),
-    );
-    _parlourPriceWomenCtrl = TextEditingController(
-      text: e?.parlourPriceWomen?.toStringAsFixed(0) ?? '',
-    );
-    _parlourDurationWomenCtrl = TextEditingController(
-      text: e?.parlourDurationWomen?.toString() ?? '30',
-    );
-    _parlourPrepMenCtrl = TextEditingController(
-      text: e?.parlourPrepMen ?? (e != null && e.isParlourAvailable && e.parlourPriceMen != null ? e.prepInstructions ?? '' : ''),
-    );
-    _parlourPrepWomenCtrl = TextEditingController(
-      text: e?.parlourPrepWomen ?? (e != null && e.isParlourAvailable && e.parlourPriceWomen != null ? e.prepInstructions ?? '' : ''),
-    );
-
-    _homePriceMenCtrl = TextEditingController(
-      text: e?.homePriceMen?.toStringAsFixed(0) ?? (e != null && e.isHomeAvailable ? e.price.toStringAsFixed(0) : ''),
-    );
-    _homeDurationMenCtrl = TextEditingController(
-      text: e?.homeDurationMen?.toString() ?? (e != null && e.isHomeAvailable ? e.durationMinutes.toString() : '30'),
-    );
-    _homePriceWomenCtrl = TextEditingController(
-      text: e?.homePriceWomen?.toStringAsFixed(0) ?? '',
-    );
-    _homeDurationWomenCtrl = TextEditingController(
-      text: e?.homeDurationWomen?.toString() ?? '30',
-    );
-    _homePrepMenCtrl = TextEditingController(
-      text: e?.homePrepMen ?? (e != null && e.isHomeAvailable && e.homePriceMen != null ? e.prepInstructions ?? '' : ''),
-    );
-    _homePrepWomenCtrl = TextEditingController(
-      text: e?.homePrepWomen ?? (e != null && e.isHomeAvailable && e.homePriceWomen != null ? e.prepInstructions ?? '' : ''),
-    );
-
     _partnerId = e?.partnerId;
     _category = e?.category ?? 'Others';
-
-    _freeRadiusCtrl = TextEditingController(
-      text: e?.freeRadiusKm.toString() ?? '0',
-    );
-    _perKmChargeCtrl = TextEditingController(
-      text: e != null ? e.perKmCharge.toStringAsFixed(0) : '0',
-    );
-    _serviceImageUrl = e?.serviceImage;
     _isActive = e?.isActive ?? true;
+    _images = e != null ? List<String>.from(e.images) : [];
+    _primaryImage = e?.primaryImage;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _descCtrl.dispose();
-    _parlourPriceMenCtrl.dispose();
-    _parlourDurationMenCtrl.dispose();
-    _parlourPriceWomenCtrl.dispose();
-    _parlourDurationWomenCtrl.dispose();
-    _parlourPrepMenCtrl.dispose();
-    _parlourPrepWomenCtrl.dispose();
-    _homePriceMenCtrl.dispose();
-    _homeDurationMenCtrl.dispose();
-    _homePriceWomenCtrl.dispose();
-    _homeDurationWomenCtrl.dispose();
-    _homePrepMenCtrl.dispose();
-    _homePrepWomenCtrl.dispose();
-    _freeRadiusCtrl.dispose();
-    _perKmChargeCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final partnerId = _partnerId ?? '';
+    if (partnerId.isEmpty) {
+      AppSnackBar.warning(context, 'Please select a store first before uploading images.');
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: false,
+      );
+
+      if (result == null || result.files.isEmpty || result.files.first.path == null) return;
+
+      setState(() => _isLoading = true);
+
+      final repo = ref.read(partnerServicesRepositoryProvider);
+      final publicUrl = await repo.uploadServiceImage(
+        partnerId: partnerId,
+        localPath: result.files.first.path!,
+      );
+
+      setState(() {
+        _images.add(publicUrl);
+        _primaryImage ??= publicUrl;
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        AppSnackBar.success(context, 'Photo uploaded successfully');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        AppSnackBar.actionFailed(context, 'upload image', e);
+      }
+    }
+  }
+
+  void _deleteImage(String url) {
+    setState(() {
+      _images.remove(url);
+      if (_primaryImage == url) {
+        _primaryImage = _images.isNotEmpty ? _images.first : null;
+      }
+    });
+  }
+
+  void _setPrimary(String url) {
+    setState(() {
+      _primaryImage = url;
+    });
   }
 
   Future<void> _submit(List<PartnerRecord> partners) async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (!_isParlourAvailable && !_isHomeAvailable) {
-      AppSnackBar.warning(context, 'Please select at least one service location: Salon or Home Visit');
-      return;
-    }
-
-    if (_isParlourAvailable && !_isParlourMenEnabled && !_isParlourWomenEnabled) {
-      AppSnackBar.warning(context, 'Please select at least one gender (Male or Female) for Salon Visit');
-      return;
-    }
-
-    if (_isHomeAvailable && !_isHomeMenEnabled && !_isHomeWomenEnabled) {
-      AppSnackBar.warning(context, 'Please select at least one gender (Male or Female) for Home Visit');
-      return;
-    }
 
     final partnerId = _partnerId ?? (partners.isNotEmpty ? partners.first.id : '');
     if (partnerId.isEmpty) {
@@ -176,103 +130,71 @@ class _PartnerServiceFormDialogState
       return;
     }
 
-    // Extraction
-    final parlourPriceMen = (_isParlourAvailable && _isParlourMenEnabled) ? (double.tryParse(_parlourPriceMenCtrl.text.trim()) ?? 0.0) : null;
-    final parlourDurationMen = (_isParlourAvailable && _isParlourMenEnabled) ? (int.tryParse(_parlourDurationMenCtrl.text.trim()) ?? 30) : null;
-    final parlourPriceWomen = (_isParlourAvailable && _isParlourWomenEnabled) ? (double.tryParse(_parlourPriceWomenCtrl.text.trim()) ?? 0.0) : null;
-    final parlourDurationWomen = (_isParlourAvailable && _isParlourWomenEnabled) ? (int.tryParse(_parlourDurationWomenCtrl.text.trim()) ?? 30) : null;
-    final parlourPrepMen = (_isParlourAvailable && _isParlourMenEnabled) ? (_parlourPrepMenCtrl.text.trim().isEmpty ? null : _parlourPrepMenCtrl.text.trim()) : null;
-    final parlourPrepWomen = (_isParlourAvailable && _isParlourWomenEnabled) ? (_parlourPrepWomenCtrl.text.trim().isEmpty ? null : _parlourPrepWomenCtrl.text.trim()) : null;
-
-    final homePriceMen = (_isHomeAvailable && _isHomeMenEnabled) ? (double.tryParse(_homePriceMenCtrl.text.trim()) ?? 0.0) : null;
-    final homeDurationMen = (_isHomeAvailable && _isHomeMenEnabled) ? (int.tryParse(_homeDurationMenCtrl.text.trim()) ?? 30) : null;
-    final homePriceWomen = (_isHomeAvailable && _isHomeWomenEnabled) ? (double.tryParse(_homePriceWomenCtrl.text.trim()) ?? 0.0) : null;
-    final homeDurationWomen = (_isHomeAvailable && _isHomeWomenEnabled) ? (int.tryParse(_homeDurationWomenCtrl.text.trim()) ?? 30) : null;
-    final homePrepMen = (_isHomeAvailable && _isHomeMenEnabled) ? (_homePrepMenCtrl.text.trim().isEmpty ? null : _homePrepMenCtrl.text.trim()) : null;
-    final homePrepWomen = (_isHomeAvailable && _isHomeWomenEnabled) ? (_homePrepWomenCtrl.text.trim().isEmpty ? null : _homePrepWomenCtrl.text.trim()) : null;
-
-    final freeRadius = _isHomeAvailable ? (int.tryParse(_freeRadiusCtrl.text.trim()) ?? 0) : 0;
-    final perKmCharge = _isHomeAvailable ? (double.tryParse(_perKmChargeCtrl.text.trim()) ?? 0.0) : 0.0;
-
     setState(() => _submitting = true);
 
     try {
       final repo = ref.read(partnerServicesRepositoryProvider);
+      final e = widget.existing;
       
-      // Determine location description for backward compatibility
-      final String serviceLocation;
-      if (_isParlourAvailable && _isHomeAvailable) {
-        serviceLocation = 'Both';
-      } else if (_isHomeAvailable) {
-        serviceLocation = 'At Home';
-      } else {
-        serviceLocation = 'At Salon Only';
-      }
-
-      // Determine backward-compatible fallbacks
-      final priceFallback = parlourPriceMen ?? parlourPriceWomen ?? homePriceMen ?? homePriceWomen ?? 0.0;
-      final durationFallback = parlourDurationMen ?? parlourDurationWomen ?? homeDurationMen ?? homeDurationWomen ?? 30;
-      final prepFallback = parlourPrepMen ?? parlourPrepWomen ?? homePrepMen ?? homePrepWomen;
-      
-      final String genderFallback;
-      if ((parlourPriceMen != null || homePriceMen != null) && (parlourPriceWomen != null || homePriceWomen != null)) {
-        genderFallback = 'Unisex';
-      } else if (parlourPriceMen != null || homePriceMen != null) {
-        genderFallback = 'Men';
-      } else {
-        genderFallback = 'Women';
-      }
-
       final data = PartnerServiceFormData(
         partnerId: partnerId,
         name: _nameCtrl.text.trim(),
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-        price: priceFallback,
-        discountPrice: null,
-        durationMinutes: durationFallback,
         category: _category,
-        targetGender: genderFallback,
-        serviceLocation: serviceLocation,
-        freeRadiusKm: freeRadius,
-        perKmCharge: perKmCharge,
-        
-        isParlourAvailable: _isParlourAvailable,
-        parlourPrice: parlourPriceMen ?? parlourPriceWomen,
-        parlourDurationMinutes: parlourDurationMen ?? parlourDurationWomen,
-        parlourTargetGender: (parlourPriceMen != null && parlourPriceWomen != null) ? 'Unisex' : (parlourPriceMen != null ? 'Men' : 'Women'),
-        parlourPriceMen: parlourPriceMen,
-        parlourDurationMen: parlourDurationMen,
-        parlourPriceWomen: parlourPriceWomen,
-        parlourDurationWomen: parlourDurationWomen,
-        parlourPrepMen: parlourPrepMen,
-        parlourPrepWomen: parlourPrepWomen,
-        
-        isHomeAvailable: _isHomeAvailable,
-        homePrice: homePriceMen ?? homePriceWomen,
-        homeDurationMinutes: homeDurationMen ?? homeDurationWomen,
-        homeTargetGender: (homePriceMen != null && homePriceWomen != null) ? 'Unisex' : (homePriceMen != null ? 'Men' : 'Women'),
-        homePriceMen: homePriceMen,
-        homeDurationMen: homeDurationMen,
-        homePriceWomen: homePriceWomen,
-        homeDurationWomen: homeDurationWomen,
-        homePrepMen: homePrepMen,
-        homePrepWomen: homePrepWomen,
-        
-        serviceImage: _serviceImageUrl,
-        isFeatured: false,
-        prepInstructions: prepFallback,
         isActive: _isActive,
+        
+        // Preserve existing pricing or set safe defaults for new services
+        price: e?.price ?? 0.0,
+        discountPrice: e?.discountPrice,
+        durationMinutes: e?.durationMinutes ?? 30,
+        targetGender: e?.targetGender ?? 'Unisex',
+        serviceLocation: e?.serviceLocation ?? 'Both',
+        freeRadiusKm: e?.freeRadiusKm ?? 0,
+        perKmCharge: e?.perKmCharge ?? 0.0,
+        
+        isParlourAvailable: e?.isParlourAvailable ?? true,
+        parlourPrice: e?.parlourPrice,
+        parlourDurationMinutes: e?.parlourDurationMinutes,
+        parlourTargetGender: e?.parlourTargetGender,
+        parlourPriceMen: e?.parlourPriceMen,
+        parlourDurationMen: e?.parlourDurationMen,
+        parlourPriceWomen: e?.parlourPriceWomen,
+        parlourDurationWomen: e?.parlourDurationWomen,
+        parlourPrepMen: e?.parlourPrepMen,
+        parlourPrepWomen: e?.parlourPrepWomen,
+        
+        isHomeAvailable: e?.isHomeAvailable ?? false,
+        homePrice: e?.homePrice,
+        homeDurationMinutes: e?.homeDurationMinutes,
+        homeTargetGender: e?.homeTargetGender,
+        homePriceMen: e?.homePriceMen,
+        homeDurationMen: e?.homeDurationMen,
+        homePriceWomen: e?.homePriceWomen,
+        homeDurationWomen: e?.homeDurationWomen,
+        homePrepMen: e?.homePrepMen,
+        homePrepWomen: e?.homePrepWomen,
+        prepInstructions: e?.prepInstructions,
       );
 
+      final PartnerServiceRecord serviceRecord;
       if (widget.existing == null) {
-        await repo.createService(callerId: user.id, data: data);
+        serviceRecord = await repo.createService(callerId: user.id, data: data);
       } else {
-        await repo.updateService(
+        serviceRecord = await repo.updateService(
           callerId: user.id,
           serviceId: widget.existing!.id,
           data: data,
         );
       }
+
+      // Sync the images to DB after service creation/update
+      await repo.updateServiceImages(
+        callerId: user.id,
+        serviceId: serviceRecord.id,
+        images: _images,
+        primaryImage: _primaryImage,
+      );
+
       if (mounted) {
         AppSnackBar.success(
           context,
@@ -317,7 +239,7 @@ class _PartnerServiceFormDialogState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. HEADER (White background bar with top rounded corners)
+            // 1. HEADER
             Container(
               padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
               decoration: const BoxDecoration(
@@ -359,7 +281,7 @@ class _PartnerServiceFormDialogState
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'Configure service information, availability, and pricing details',
+                          'Configure basic service metadata and photos',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -376,7 +298,7 @@ class _PartnerServiceFormDialogState
               ),
             ),
 
-            // 2. BODY & FOOTER (Scoping partners data)
+            // 2. BODY & FOOTER
             Expanded(
               child: partnersAsync.when(
                 loading: () => const Center(
@@ -458,381 +380,196 @@ class _PartnerServiceFormDialogState
                     }
                   }
 
-                  Widget buildPricingDurationRow({
-                    required String genderLabel,
-                    required TextEditingController priceCtrl,
-                    required TextEditingController durationCtrl,
-                  }) {
-                    final priceField = PartnerFormField(
-                      label: "$genderLabel Price (₹) *",
-                      icon: Icons.currency_rupee,
-                      controller: priceCtrl,
-                      required: true,
-                      keyboard: TextInputType.number,
-                      compact: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                      ],
-                    );
-
-                    final durationField = PartnerFormField(
-                      label: "$genderLabel Duration (min) *",
-                      icon: Icons.timer_outlined,
-                      controller: durationCtrl,
-                      required: true,
-                      keyboard: TextInputType.number,
-                      compact: true,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    );
-
-                    if (isCompact) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          priceField,
-                          durationField,
-                        ],
-                      );
-                    } else {
-                      return PartnerFormRow(
-                        children: [
-                          priceField,
-                          durationField,
-                        ],
-                      );
-                    }
-                  }
-
-                  Widget buildHomeTravelRow() {
-                    final radiusField = PartnerFormField(
-                      label: 'Free Radius (km) *',
-                      icon: Icons.map_outlined,
-                      controller: _freeRadiusCtrl,
-                      required: true,
-                      keyboard: TextInputType.number,
-                      compact: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                    );
-
-                    final chargeField = PartnerFormField(
-                      label: 'Charge per km (₹) *',
-                      icon: Icons.currency_rupee,
-                      controller: _perKmChargeCtrl,
-                      required: true,
-                      keyboard: TextInputType.number,
-                      compact: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9.]'),
-                        ),
-                      ],
-                    );
-
-                    if (isCompact) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          radiusField,
-                          chargeField,
-                        ],
-                      );
-                    } else {
-                      return PartnerFormRow(
-                        children: [
-                          radiusField,
-                          chargeField,
-                        ],
-                      );
-                    }
-                  }
-
-                  final parlourVisitWidget = Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _isParlourAvailable
-                          ? AppColors.primary.withValues(alpha: 0.02)
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _isParlourAvailable
-                            ? AppColors.primary.withValues(alpha: 0.25)
-                            : AppColors.border,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _isParlourAvailable,
-                              onChanged: (v) => setState(() {
-                                _isParlourAvailable = v ?? false;
-                              }),
-                              activeColor: AppColors.primary,
+                  Widget buildImageUploader(BuildContext context) {
+                    Widget buildUploadDropzone() {
+                      return InkWell(
+                        onTap: _isLoading || _images.length >= 5 ? null : _pickAndUploadImage,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.01),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _images.length >= 5
+                                  ? AppColors.border
+                                  : AppColors.primary.withValues(alpha: 0.25),
+                              width: 1.5,
                             ),
-                            const Icon(Icons.storefront_outlined, size: 20, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Available at Salon (Parlour Visit)',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13.5,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: _images.length >= 5
+                                      ? AppColors.border.withValues(alpha: 0.2)
+                                      : AppColors.primary.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.cloud_upload_outlined,
+                                  size: 24,
+                                  color: _images.length >= 5
+                                      ? AppColors.textSecondary
+                                      : AppColors.primary,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        if (_isParlourAvailable) ...[
-                          const SizedBox(height: 12),
-                          // Male option
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                      value: _isParlourMenEnabled,
-                                      onChanged: (v) => setState(() {
-                                        _isParlourMenEnabled = v ?? false;
-                                      }),
-                                      activeColor: AppColors.primary,
-                                    ),
-                                    const Icon(Icons.male, size: 18, color: AppColors.textSecondary),
-                                    const SizedBox(width: 4),
-                                    const Text(
-                                      "Men's Service",
-                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
-                                    ),
-                                  ],
+                              const SizedBox(height: 12),
+                              Text(
+                                _images.length >= 5
+                                    ? 'Upload Limit Reached'
+                                    : 'Upload Service Photos',
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
                                 ),
-                                if (_isParlourMenEnabled) ...[
-                                  const SizedBox(height: 8),
-                                  buildPricingDurationRow(
-                                    genderLabel: "Men's",
-                                    priceCtrl: _parlourPriceMenCtrl,
-                                    durationCtrl: _parlourDurationMenCtrl,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  PartnerFormField(
-                                    label: "Men's Prep Instructions",
-                                    icon: Icons.assignment_outlined,
-                                    controller: _parlourPrepMenCtrl,
-                                    hint: "e.g. Wash your hair before arriving...",
-                                    compact: true,
-                                    maxLines: 2,
-                                  ),
-                                ],
-                              ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _images.length >= 5
+                                    ? 'You have uploaded the maximum of 5 photos'
+                                    : 'Supports PNG, JPG (Max 5 files)',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    Widget buildUploadedGrid() {
+                      if (_images.isEmpty) return const SizedBox.shrink();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Uploaded Photos',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 10),
-                          // Female option
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                      value: _isParlourWomenEnabled,
-                                      onChanged: (v) => setState(() {
-                                        _isParlourWomenEnabled = v ?? false;
-                                      }),
-                                      activeColor: AppColors.primary,
-                                    ),
-                                    const Icon(Icons.female, size: 18, color: AppColors.textSecondary),
-                                    const SizedBox(width: 4),
-                                    const Text(
-                                      "Women's Service",
-                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: _images.map((url) {
+                              final isPrimary = url == _primaryImage;
+                              return Container(
+                                width: 86,
+                                height: 86,
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isPrimary ? AppColors.primary : AppColors.border,
+                                    width: isPrimary ? 2 : 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
-                                if (_isParlourWomenEnabled) ...[
-                                  const SizedBox(height: 8),
-                                  buildPricingDurationRow(
-                                    genderLabel: "Women's",
-                                    priceCtrl: _parlourPriceWomenCtrl,
-                                    durationCtrl: _parlourDurationWomenCtrl,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  PartnerFormField(
-                                    label: "Women's Prep Instructions",
-                                    icon: Icons.assignment_outlined,
-                                    controller: _parlourPrepWomenCtrl,
-                                    hint: "e.g. Wash your hair before arriving...",
-                                    compact: true,
-                                    maxLines: 2,
-                                  ),
-                                ],
-                              ],
-                            ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.network(
+                                      url,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => const Center(
+                                        child: Icon(Icons.broken_image_outlined, size: 20, color: Colors.red),
+                                      ),
+                                    ),
+                                    // Delete button
+                                    Positioned(
+                                      top: 5,
+                                      right: 5,
+                                      child: GestureDetector(
+                                        onTap: _isLoading ? null : () => _deleteImage(url),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.6),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.close_rounded,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Primary badge
+                                    Positioned(
+                                      bottom: 5,
+                                      right: 5,
+                                      child: GestureDetector(
+                                        onTap: _isLoading ? null : () => _setPrimary(url),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(3),
+                                          decoration: BoxDecoration(
+                                            color: isPrimary ? AppColors.primary : Colors.black.withValues(alpha: 0.6),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            isPrimary ? Icons.star_rounded : Icons.star_outline_rounded,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ],
-                      ],
-                    ),
-                  );
+                      );
+                    }
 
-                  final homeVisitWidget = Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _isHomeAvailable
-                          ? AppColors.primary.withValues(alpha: 0.02)
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _isHomeAvailable
-                            ? AppColors.primary.withValues(alpha: 0.25)
-                            : AppColors.border,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    return Stack(
                       children: [
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Checkbox(
-                              value: _isHomeAvailable,
-                              onChanged: (v) => setState(() {
-                                _isHomeAvailable = v ?? false;
-                              }),
-                              activeColor: AppColors.primary,
-                            ),
-                            const Icon(Icons.home_outlined, size: 20, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Available at Home (Home Visit)',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13.5,
+                            buildUploadDropzone(),
+                            buildUploadedGrid(),
+                          ],
+                        ),
+                        if (_isLoading)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        if (_isHomeAvailable) ...[
-                          const SizedBox(height: 12),
-                          // Male option
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                      value: _isHomeMenEnabled,
-                                      onChanged: (v) => setState(() {
-                                        _isHomeMenEnabled = v ?? false;
-                                      }),
-                                      activeColor: AppColors.primary,
-                                    ),
-                                    const Icon(Icons.male, size: 18, color: AppColors.textSecondary),
-                                    const SizedBox(width: 4),
-                                    const Text(
-                                      "Men's Service",
-                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
-                                    ),
-                                  ],
-                                ),
-                                if (_isHomeMenEnabled) ...[
-                                  const SizedBox(height: 8),
-                                  buildPricingDurationRow(
-                                    genderLabel: "Men's",
-                                    priceCtrl: _homePriceMenCtrl,
-                                    durationCtrl: _homeDurationMenCtrl,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  PartnerFormField(
-                                    label: "Men's Prep Instructions",
-                                    icon: Icons.assignment_outlined,
-                                    controller: _homePrepMenCtrl,
-                                    hint: "e.g. Wash your hair before arriving...",
-                                    compact: true,
-                                    maxLines: 2,
-                                  ),
-                                ],
-                              ],
-                            ),
                           ),
-                          const SizedBox(height: 10),
-                          // Female option
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                      value: _isHomeWomenEnabled,
-                                      onChanged: (v) => setState(() {
-                                        _isHomeWomenEnabled = v ?? false;
-                                      }),
-                                      activeColor: AppColors.primary,
-                                    ),
-                                    const Icon(Icons.female, size: 18, color: AppColors.textSecondary),
-                                    const SizedBox(width: 4),
-                                    const Text(
-                                      "Women's Service",
-                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
-                                    ),
-                                  ],
-                                ),
-                                if (_isHomeWomenEnabled) ...[
-                                  const SizedBox(height: 8),
-                                  buildPricingDurationRow(
-                                    genderLabel: "Women's",
-                                    priceCtrl: _homePriceWomenCtrl,
-                                    durationCtrl: _homeDurationWomenCtrl,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  PartnerFormField(
-                                    label: "Women's Prep Instructions",
-                                    icon: Icons.assignment_outlined,
-                                    controller: _homePrepWomenCtrl,
-                                    hint: "e.g. Wash your hair before arriving...",
-                                    compact: true,
-                                    maxLines: 2,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          buildHomeTravelRow(),
-                        ],
                       ],
-                    ),
-                  );
+                    );
+                  }
 
                   Widget buildCardsBody() {
                     final serviceDetailsCard = PartnerFormSection(
@@ -862,42 +599,14 @@ class _PartnerServiceFormDialogState
                           hint: 'Optional service details...',
                           compact: true,
                         ),
-                        if (isEdit) ...[
-                          const SizedBox(height: 8),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Active', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                            subtitle: const Text('Inactive services are hidden from customer app', style: TextStyle(fontSize: 11)),
-                            value: _isActive,
-                            onChanged: (v) => setState(() => _isActive = v),
-                          ),
-                        ],
                       ],
                     );
 
-                    final pricingCard = PartnerFormSection(
-                      title: 'Service Availability & Pricing',
-                      icon: Icons.payments_outlined,
+                    final mediaCard = PartnerFormSection(
+                      title: 'Service Media',
+                      icon: Icons.image_outlined,
                       children: [
-                        if (isCompact) ...[
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              parlourVisitWidget,
-                              const SizedBox(height: 16),
-                              homeVisitWidget,
-                            ],
-                          ),
-                        ] else ...[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(child: parlourVisitWidget),
-                              const SizedBox(width: 20),
-                              Expanded(child: homeVisitWidget),
-                            ],
-                          ),
-                        ],
+                        buildImageUploader(context),
                       ],
                     );
 
@@ -907,7 +616,7 @@ class _PartnerServiceFormDialogState
                         children: [
                           serviceDetailsCard,
                           descriptionCard,
-                          pricingCard,
+                          mediaCard,
                         ],
                       );
                     } else {
@@ -917,20 +626,25 @@ class _PartnerServiceFormDialogState
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Left column card (Store & Service details)
+                              // Left column card stack (Store & Service details + Description)
                               Expanded(
                                 flex: 11,
-                                child: serviceDetailsCard,
+                                child: Column(
+                                  children: [
+                                    serviceDetailsCard,
+                                    const SizedBox(height: 20),
+                                    descriptionCard,
+                                  ],
+                                ),
                               ),
                               const SizedBox(width: 20),
-                              // Right column description card
+                              // Right column (Service Media)
                               Expanded(
                                 flex: 12,
-                                child: descriptionCard,
+                                child: mediaCard,
                               ),
                             ],
                           ),
-                          pricingCard,
                         ],
                       );
                     }

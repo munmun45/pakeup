@@ -257,10 +257,6 @@ class PartnerServiceFormData {
         'home_duration_women': homeDurationWomen,
         'home_prep_men': homePrepMen,
         'home_prep_women': homePrepWomen,
-        
-        'service_image': serviceImage,
-        'is_featured': isFeatured,
-        'prep_instructions': prepInstructions,
       };
 
   Map<String, dynamic> toUpdateParams(String serviceId) => {
@@ -289,9 +285,5 @@ class PartnerServiceFormData {
         'home_duration_women': homeDurationWomen,
         'home_prep_men': homePrepMen,
         'home_prep_women': homePrepWomen,
-        
-        'service_image': serviceImage,
-        'is_featured': isFeatured,
-        'prep_instructions': prepInstructions,
       };
 }
