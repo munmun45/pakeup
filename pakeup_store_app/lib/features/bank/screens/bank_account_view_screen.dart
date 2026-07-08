@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../shared/widgets/page_scaffold.dart';
 import '../../../core/widgets/pull_to_refresh.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../kyc/widgets/kyc_form_sections.dart';
@@ -71,18 +72,8 @@ class _BankAccountViewScreenState extends ConsumerState<BankAccountViewScreen> {
     final user = ref.watch(authStateProvider).valueOrNull;
     final status = bankStatusInfo(_data?['account_status'] as String?);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Bank Account'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
-        ),
-      ),
+    return PageScaffold(
+      title: 'Bank Account',
       bottomNavigationBar: _loading || !_showEditAction
           ? null
           : _BankActionBar(

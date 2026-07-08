@@ -86,7 +86,7 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
   void _fillFromParentAccount(PartnerUser user) {
     final phone = _accountPhone(user);
     if (phone == null || phone.isEmpty) {
-      AppSnackBar.show(context, 'No contact number on your account.');
+      AppSnackBar.warning(context, 'No contact number on your account.');
       return;
     }
 

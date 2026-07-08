@@ -8,6 +8,7 @@ import '../../../core/utils/external_links.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
+import '../../shared/widgets/page_scaffold.dart';
 import '../models/store_models.dart';
 import '../models/store_schedule_models.dart';
 import '../providers/stores_provider.dart';
@@ -87,13 +88,9 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
     final storeAsync = ref.watch(storeDetailProvider(widget.storeId));
     final partner = ref.watch(authStateProvider).valueOrNull;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Store Details'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
+    return PageScaffold(
+      appBar: AppPageAppBar(
+        title: 'Store Details',
         actions: [
           storeAsync.maybeWhen(
             data: (store) => IconButton(

@@ -11,10 +11,18 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/utils/partner_kyc_status.dart';
 import '../../services/providers/services_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
+import '../../shared/widgets/app_ui_components.dart';
+import '../../shared/widgets/premium_card.dart';
+import '../../shared/widgets/section_header.dart';
 import '../../stores/models/store_models.dart';
 import '../../stores/providers/stores_provider.dart';
 import '../models/dashboard_models.dart';
 import '../providers/dashboard_provider.dart';
+
+/// Shared spacing for dashboard stat + quick-action grids.
+const _dashboardGridGap = 10.0;
+const _dashboardSectionGap = 16.0;
+const _dashboardTitleGap = 10.0;
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -43,7 +51,6 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ── Fixed gradient header ──
           _DashboardHeader(
             name: partner.ownerName.isNotEmpty
                 ? partner.ownerName
@@ -60,8 +67,6 @@ class DashboardScreen extends ConsumerWidget {
                 : 'P',
             kycStatus: kycStatus,
           ),
-
-          // ── Scrollable content ──
           Expanded(
             child: pullToRefresh(
               onRefresh: () async {
@@ -76,7 +81,13 @@ class DashboardScreen extends ConsumerWidget {
               },
               child: ListView(
                 physics: alwaysScrollablePhysics,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                clipBehavior: Clip.none,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pageHorizontal,
+                  AppSpacing.pageHorizontal,
+                  AppSpacing.pageHorizontal,
+                  AppSpacing.pageBottom,
+                ),
                 children: [
                   // KYC banner
                   if (!kycApproved && hasStores) ...[
@@ -84,10 +95,10 @@ class DashboardScreen extends ConsumerWidget {
                       status: kycStatus,
                       onTap: () => context.push('/kyc'),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: _dashboardSectionGap),
                   ],
 
-                  // Booking & revenue metrics (horizontal scroll)
+                  // Booking & revenue metrics
                   statsAsync.when(
                     loading: () => const SizedBox(
                       height: 212,
@@ -98,68 +109,21 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     data: (stats) => _MetricsPanel(stats: stats),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: _dashboardSectionGap),
 
-                  // Quick actions — single horizontal scroll row
-                  const _SectionTitle('Quick Actions'),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 100,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _QuickAction(
-                          icon: Icons.storefront_rounded,
-                          label: 'My Stores',
-                          color: AppColors.primary,
-                          onTap: () => context.push('/stores'),
-                        ),
-                        const SizedBox(width: 10),
-                        _QuickAction(
-                          icon: Icons.verified_user_rounded,
-                          label: 'Upload KYC',
-                          color: const Color(0xFF5C6BC0),
-                          enabled: hasStores,
-                          onTap: () => context.push('/kyc'),
-                        ),
-                        const SizedBox(width: 10),
-                        _QuickAction(
-                          icon: Icons.account_balance_rounded,
-                          label: 'Bank Account',
-                          color: const Color(0xFF00897B),
-                          enabled: hasStores,
-                          onTap: () => context.push('/bank'),
-                        ),
-                        const SizedBox(width: 10),
-                        _QuickAction(
-                          icon: Icons.inventory_2_rounded,
-                          label: 'Inventory',
-                          color: const Color(0xFFE65100),
-                          enabled: hasStores,
-                          onTap: () => context.push('/inventory'),
-                        ),
-                        const SizedBox(width: 10),
-                        _QuickAction(
-                          icon: Icons.spa_rounded,
-                          label: 'Services',
-                          color: AppColors.secondary,
-                          enabled: hasStores,
-                          onTap: () => context.push('/services'),
-                        ),
-                        const SizedBox(width: 10),
-                        _QuickAction(
-                          icon: Icons.person_rounded,
-                          label: 'Profile',
-                          color: const Color(0xFF546E7A),
-                          onTap: () => context.push('/profile'),
-                        ),
-                      ],
-                    ),
+                  const SectionHeader(
+                    title: 'Quick Actions',
+                    compact: true,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: _dashboardTitleGap),
+                  _QuickActionsGrid(hasStores: hasStores),
+                  const SizedBox(height: _dashboardSectionGap),
 
-                  const _SectionTitle('Need Help?'),
-                  const SizedBox(height: 10),
+                  const SectionHeader(
+                    title: 'Need Help?',
+                    compact: true,
+                  ),
+                  const SizedBox(height: _dashboardTitleGap),
                   const _HelpContactCard(),
                 ],
               ),
@@ -171,7 +135,92 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-// ── Header ───────────────────────────────────────────────────────────────────
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid({required this.hasStores});
+
+  final bool hasStores;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _QuickActionRow(
+          children: [
+            QuickActionChip(
+              expanded: true,
+              icon: Icons.storefront_rounded,
+              label: 'My Stores',
+              color: AppColors.primary,
+              onTap: () => context.push('/stores'),
+            ),
+            QuickActionChip(
+              expanded: true,
+              icon: Icons.verified_user_rounded,
+              label: 'Upload KYC',
+              color: const Color(0xFF5C6BC0),
+              enabled: hasStores,
+              onTap: () => context.push('/kyc'),
+            ),
+            QuickActionChip(
+              expanded: true,
+              icon: Icons.account_balance_rounded,
+              label: 'Bank Account',
+              color: AppColors.teal,
+              enabled: hasStores,
+              onTap: () => context.push('/bank'),
+            ),
+          ],
+        ),
+        const SizedBox(height: _dashboardGridGap),
+        _QuickActionRow(
+          children: [
+            QuickActionChip(
+              expanded: true,
+              icon: Icons.inventory_2_rounded,
+              label: 'Inventory',
+              color: AppColors.warning,
+              enabled: hasStores,
+              onTap: () => context.push('/inventory'),
+            ),
+            QuickActionChip(
+              expanded: true,
+              icon: Icons.spa_rounded,
+              label: 'Services',
+              color: AppColors.secondary,
+              enabled: hasStores,
+              onTap: () => context.push('/services'),
+            ),
+            QuickActionChip(
+              expanded: true,
+              icon: Icons.person_rounded,
+              label: 'Profile',
+              color: const Color(0xFF546E7A),
+              onTap: () => context.push('/profile'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionRow extends StatelessWidget {
+  const _QuickActionRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(width: _dashboardGridGap),
+          Expanded(child: children[i]),
+        ],
+      ],
+    );
+  }
+}
 
 class _DashboardHeader extends StatelessWidget {
   const _DashboardHeader({
@@ -185,108 +234,38 @@ class _DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topPad + 14, 20, 18),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.secondary],
+    return GradientPageHeader(
+      title: name,
+      subtitle: 'Welcome back!',
+      initial: initial,
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
         ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.white.withValues(alpha: 0.22),
-            child: Text(
-              initial,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              kycStatus == 'approved'
+                  ? Icons.verified_rounded
+                  : Icons.pending_rounded,
+              size: 13,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              kycStatus == 'approved' ? 'Verified' : 'KYC Pending',
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back!',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          // KYC badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  kycStatus == 'approved'
-                      ? Icons.verified_rounded
-                      : Icons.pending_rounded,
-                  size: 13,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  kycStatus == 'approved' ? 'Verified' : 'KYC Pending',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Section title ─────────────────────────────────────────────────────────────
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+          ],
+        ),
       ),
     );
   }
@@ -414,7 +393,7 @@ class _MetricsPanel extends StatelessWidget {
     return Column(
       children: [
         _MetricRow(items: bookingRow),
-        const SizedBox(height: 10),
+        const SizedBox(height: _dashboardGridGap),
         _MetricRow(items: revenueRow),
       ],
     );
@@ -433,7 +412,7 @@ class _MetricRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) const SizedBox(width: 10),
+            if (i > 0) const SizedBox(width: _dashboardGridGap),
             Expanded(child: _MetricCard(item: items[i])),
           ],
         ],
@@ -463,30 +442,27 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: item.color.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return PremiumCard(
+      accentColor: item.color,
+      compact: true,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  item.color.withValues(alpha: 0.16),
+                  item.color.withValues(alpha: 0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(item.icon, size: 15, color: item.color),
+            child: Icon(item.icon, size: 16, color: item.color),
           ),
           const SizedBox(height: 8),
           Text(
@@ -521,13 +497,8 @@ class _HelpContactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -635,8 +606,11 @@ class _ContactLine extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.background,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.border.withValues(alpha: 0.6),
+            ),
           ),
           child: Row(
             children: [
@@ -677,77 +651,3 @@ class _ContactLine extends StatelessWidget {
   }
 }
 
-// ── Quick action tile ─────────────────────────────────────────────────────────
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-    this.enabled = true,
-  });
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final iconColor = enabled ? color : AppColors.textSecondary;
-    return GestureDetector(
-      onTap: enabled
-          ? onTap
-          : () => AppSnackBar.error(context, 'Add a store first'),
-      child: Opacity(
-        opacity: enabled ? 1 : 0.45,
-        child: SizedBox(
-          width: 88,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: iconColor, size: 22),
-                ),
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: enabled
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

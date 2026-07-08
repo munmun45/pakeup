@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../shared/widgets/page_scaffold.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../kyc/widgets/kyc_form_sections.dart';
 import '../../shared/widgets/app_snackbar.dart';
@@ -136,18 +137,8 @@ class _BankDetailsScreenState extends ConsumerState<BankDetailsScreen> {
     final user = ref.watch(authStateProvider).valueOrNull;
     final status = bankStatusInfo(_accountStatus);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(_hasExistingData ? 'Edit Bank Account' : 'Add Bank Account'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
-        ),
-      ),
+    return PageScaffold(
+      title: _hasExistingData ? 'Edit Bank Account' : 'Add Bank Account',
       bottomNavigationBar: _loadingData
           ? null
           : _BankSubmitBar(
