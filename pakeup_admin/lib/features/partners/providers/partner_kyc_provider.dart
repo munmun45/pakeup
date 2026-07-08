@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/supabase_provider.dart';
+import '../../../core/utils/list_sort.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/partner_kyc_repository.dart';
 import '../models/partner_kyc_models.dart';
@@ -14,7 +15,10 @@ final partnerAccountsListProvider =
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return [];
 
-  return ref.read(partnerKycRepositoryProvider).listAccounts(user.id);
+  return (await ref.read(partnerKycRepositoryProvider).listAccounts(user.id))
+      .sortedByNewest(
+        (a) => a.createdAt ?? a.accountUpdatedAt,
+      );
 });
 
 final partnerKycOverviewListProvider =
@@ -22,5 +26,6 @@ final partnerKycOverviewListProvider =
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return [];
 
-  return ref.read(partnerKycRepositoryProvider).listKycOverview(user.id);
+  return (await ref.read(partnerKycRepositoryProvider).listKycOverview(user.id))
+      .sortedByNewest((r) => r.createdAt);
 });

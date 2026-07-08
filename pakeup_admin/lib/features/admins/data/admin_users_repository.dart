@@ -9,6 +9,7 @@ class AdminAccount {
     this.phone,
     this.notes,
     this.isActive = true,
+    this.createdAt,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class AdminAccount {
   final String? phone;
   final String? notes;
   final bool isActive;
+  final DateTime? createdAt;
 
   bool get isSuperAdmin => role == 'super_admin';
   String get displayName => name?.trim().isNotEmpty == true ? name! : id;
@@ -34,6 +36,9 @@ class AdminAccount {
       phone: json['phone'] as String?,
       notes: json['notes'] as String?,
       isActive: json['is_active'] as bool? ?? true,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
     );
   }
 }

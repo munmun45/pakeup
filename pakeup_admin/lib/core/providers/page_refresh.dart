@@ -25,6 +25,7 @@ void refreshAdminPage(WidgetRef ref, String pageKey) {
       ref.invalidate(partnerCategoriesListProvider);
       ref.invalidate(activePartnerCategoriesProvider);
     case 'partner_kyc':
+      ref.invalidate(partnerKycOverviewListProvider);
       ref.invalidate(partnersListProvider);
     case 'partner_manage_accounts':
       ref.invalidate(partnerAccountsListProvider);

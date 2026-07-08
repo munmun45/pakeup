@@ -68,6 +68,10 @@ class AppTheme {
           side: const BorderSide(color: AppColors.border),
         ),
       ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+        circularTrackColor: Color(0x1AE91E8C),
+      ),
     );
   }
 }

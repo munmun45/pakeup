@@ -47,20 +47,32 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
           ),
           data: (accounts) {
             final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
-            final partners = ref.watch(partnersListProvider).valueOrNull ?? [];
+            final partners = focus != null
+                ? (ref.watch(partnersListProvider).valueOrNull ?? [])
+                : const <PartnerRecord>[];
             final visible = accounts.where((a) {
-              if (focus != null && a.partnerId != focus.partnerId) return false;
-              if (accountFilter != null) {
-                final partner = partners.firstWhere(
-                  (p) => p.id == a.partnerId,
-                  orElse: () => PartnerRecord(id: '', businessName: '', ownerName: ''),
-                );
-                if (partner.accountId != accountFilter.accountId) return false;
+              if (focus != null) {
+                PartnerRecord? focusPartner;
+                for (final p in partners) {
+                  if (p.id == focus.partnerId) {
+                    focusPartner = p;
+                    break;
+                  }
+                }
+                if (focusPartner != null &&
+                    a.accountId != focusPartner.accountId) {
+                  return false;
+                }
+              }
+              if (accountFilter != null && a.accountId != accountFilter.accountId) {
+                return false;
               }
               if (searchQuery.isNotEmpty) {
                 final q = searchQuery;
-                final matches = a.businessName.toLowerCase().contains(q) ||
-                    a.ownerName.toLowerCase().contains(q) ||
+                final matches = a.ownerName.toLowerCase().contains(q) ||
+                    a.accountId.toLowerCase().contains(q) ||
+                    (a.phone?.toLowerCase().contains(q) ?? false) ||
+                    (a.email?.toLowerCase().contains(q) ?? false) ||
                     (a.bankName?.toLowerCase().contains(q) ?? false) ||
                     (a.accountNumber?.toLowerCase().contains(q) ?? false) ||
                     (a.ifscCode?.toLowerCase().contains(q) ?? false);
@@ -119,14 +131,14 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                     child: Padding(
                       padding: EdgeInsets.all(40),
                       child: Center(
-                        child: Text('Add partners first to manage accounts.'),
+                        child: Text('No bank accounts found for partner logins.'),
                       ),
                     ),
                   )
                 else
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      const minWidth = 920.0;
+                      const minWidth = 1080.0;
                       final table = Card(
                         clipBehavior: Clip.antiAlias,
                         child: Column(
@@ -150,7 +162,7 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                                   SizedBox(
                                     width: 220,
                                     child: Text(
-                                      'PARTNER',
+                                      'OWNER',
                                       style: partnerTableHeaderStyle,
                                     ),
                                   ),
@@ -169,7 +181,21 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   SizedBox(
-                                    width: 108,
+                                    width: 72,
+                                    child: Text(
+                                      'TYPE',
+                                      style: partnerTableHeaderStyle,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 110,
+                                    child: Text(
+                                      'UPI',
+                                      style: partnerTableHeaderStyle,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 96,
                                     child: Text(
                                       'APPROVAL',
                                       style: partnerTableHeaderStyle,
@@ -199,7 +225,7 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                                 account: visible[i],
                                 isLast: i == visible.length - 1,
                                 onView: () =>
-                                    _showAccountView(context, visible[i]),
+                                    _showAccountView(context, ref, visible[i]),
                                 onUpload: () => _openBankDetails(
                                   context,
                                   ref,
@@ -232,10 +258,23 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAccountView(BuildContext context, PartnerAccountRecord account) {
+  void _showAccountView(
+    BuildContext context,
+    WidgetRef ref,
+    PartnerAccountRecord account,
+  ) async {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+
+    final fresh = await ref.read(partnerKycRepositoryProvider).enrichAccountRecord(
+          callerId: user.id,
+          account: account,
+        );
+    if (!context.mounted) return;
+
     showDialog<void>(
       context: context,
-      builder: (context) => PartnerAccountViewDialog(account: account),
+      builder: (context) => PartnerAccountViewDialog(account: fresh),
     );
   }
 
@@ -244,16 +283,21 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
     WidgetRef ref,
     PartnerAccountRecord account,
   ) async {
-    final partner = PartnerRecord(
-      id: account.partnerId,
-      businessName: account.businessName,
-      ownerName: account.ownerName,
-      isActive: account.isActive,
-    );
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) {
+      AppSnackBar.warning(context, 'Please sign in again');
+      return;
+    }
+
+    final fresh = await ref.read(partnerKycRepositoryProvider).enrichAccountRecord(
+          callerId: user.id,
+          account: account,
+        );
+    if (!context.mounted) return;
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => PartnerBankDetailsDialog(partner: partner),
+      builder: (context) => PartnerBankDetailsDialog(account: fresh),
     );
     if (saved == true) {
       ref.invalidate(partnerAccountsListProvider);
@@ -277,13 +321,13 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
     try {
       await ref.read(partnerKycRepositoryProvider).setAccountStatus(
             callerId: user.id,
-            partnerId: account.partnerId,
+            accountId: account.accountId,
             status: nextStatus,
           );
       if (context.mounted) {
         AppSnackBar.success(
           context,
-          'Account ${nextStatus == 'approved' ? 'approved' : 'rejected'} for "${account.businessName}"',
+          'Bank account ${nextStatus == 'approved' ? 'approved' : 'rejected'} for "${account.ownerName}"',
         );
       }
       ref.invalidate(partnerAccountsListProvider);
@@ -333,33 +377,33 @@ class _AccountRow extends ConsumerWidget {
               child: Row(
                 children: [
                   MouseRegion(
-                    cursor: (account.primaryImage?.trim().isNotEmpty == true ||
-                            (account.images.isNotEmpty && account.images.first.trim().isNotEmpty))
+                    cursor: (account.primaryImage?.trim().isNotEmpty == true)
                         ? SystemMouseCursors.click
                         : SystemMouseCursors.basic,
                     child: GestureDetector(
                       onTap: () {
-                        final img = account.primaryImage?.trim().isNotEmpty == true
-                            ? account.primaryImage!.trim()
-                            : (account.images.isNotEmpty ? account.images.first.trim() : null);
+                        final img = account.primaryImage?.trim();
                         if (img != null && img.isNotEmpty) {
-                          showImagePreviewDialog(context, img, title: account.businessName);
+                          showImagePreviewDialog(
+                            context,
+                            img,
+                            title: account.ownerName,
+                          );
                         }
                       },
                       child: CircleAvatar(
                         radius: 16,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                        backgroundImage: (account.primaryImage?.trim().isNotEmpty == true)
-                            ? NetworkImage(account.primaryImage!.trim())
-                            : (account.images.isNotEmpty && account.images.first.trim().isNotEmpty)
-                                ? NetworkImage(account.images.first.trim())
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.12),
+                        backgroundImage:
+                            (account.primaryImage?.trim().isNotEmpty == true)
+                                ? NetworkImage(account.primaryImage!.trim())
                                 : null,
-                        child: (account.primaryImage?.trim().isNotEmpty == true ||
-                                (account.images.isNotEmpty && account.images.first.trim().isNotEmpty))
+                        child: (account.primaryImage?.trim().isNotEmpty == true)
                             ? null
                             : Text(
-                                account.businessName.isNotEmpty
-                                    ? account.businessName[0].toUpperCase()
+                                account.ownerName.isNotEmpty
+                                    ? account.ownerName[0].toUpperCase()
                                     : '?',
                                 style: const TextStyle(
                                   color: AppColors.primary,
@@ -376,7 +420,7 @@ class _AccountRow extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          account.businessName,
+                          account.ownerName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -384,17 +428,19 @@ class _AccountRow extends ConsumerWidget {
                         Row(
                           children: [
                             Icon(
-                              Icons.phone_outlined,
+                              Icons.badge_outlined,
                               size: 11,
-                              color: AppColors.textSecondary.withValues(alpha: 0.75),
+                              color: AppColors.textSecondary
+                                  .withValues(alpha: 0.75),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text.rich(
                                 TextSpan(
                                   children: [
-                                    TextSpan(text: account.ownerName),
-                                    if (account.phone?.trim().isNotEmpty == true) ...[
+                                    TextSpan(text: 'ID: ${account.shortAccountId}'),
+                                    if (account.phone?.trim().isNotEmpty ==
+                                        true) ...[
                                       const TextSpan(text: ' · '),
                                       TextSpan(
                                         text: account.phone!.trim(),
@@ -402,6 +448,13 @@ class _AccountRow extends ConsumerWidget {
                                           color: AppColors.primary,
                                           fontWeight: FontWeight.w600,
                                         ),
+                                      ),
+                                    ],
+                                    if (account.storeCount > 0) ...[
+                                      const TextSpan(text: ' · '),
+                                      TextSpan(
+                                        text:
+                                            '${account.storeCount} store${account.storeCount == 1 ? '' : 's'}',
                                       ),
                                     ],
                                   ],
@@ -454,7 +507,21 @@ class _AccountRow extends ConsumerWidget {
               ),
             ),
             SizedBox(
-              width: 108,
+              width: 72,
+              child: _AccountValueCell(
+                value: account.displayAccountType,
+                empty: account.accountType?.trim().isNotEmpty != true,
+              ),
+            ),
+            SizedBox(
+              width: 110,
+              child: _AccountValueCell(
+                value: account.displayUpiId,
+                empty: account.upiId?.trim().isNotEmpty != true,
+              ),
+            ),
+            SizedBox(
+              width: 96,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: PartnerKycStatusBadge(status: account.accountStatus),
@@ -475,7 +542,7 @@ class _AccountRow extends ConsumerWidget {
                 children: [
                   PartnerTableAction(
                     icon: Icons.upload_file_outlined,
-                    tooltip: 'Upload Account',
+                    tooltip: 'Upload Bank Account',
                     color: AppColors.primary,
                     onPressed: onUpload,
                   ),
@@ -491,7 +558,7 @@ class _AccountRow extends ConsumerWidget {
                     icon: _isApproved
                         ? Icons.cancel_outlined
                         : Icons.check_circle_outline,
-                    tooltip: _isApproved ? 'Reject Account' : 'Approve Account',
+                    tooltip: _isApproved ? 'Reject Bank Account' : 'Approve Bank Account',
                     color: _isApproved ? AppColors.error : AppColors.success,
                     onPressed: onToggleApproval,
                   ),

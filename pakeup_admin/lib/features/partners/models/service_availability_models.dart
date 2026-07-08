@@ -1,3 +1,8 @@
+DateTime parseOverrideDate(dynamic value) {
+  final parsed = DateTime.parse(value.toString());
+  return DateTime(parsed.year, parsed.month, parsed.day);
+}
+
 enum VisitType {
   parlour,
   home,
@@ -44,6 +49,83 @@ enum VisitType {
   }
 }
 
+class ServicePricingOverride {
+  const ServicePricingOverride({
+    required this.serviceId,
+    required this.overrideDate,
+    this.parlourPriceMen,
+    this.parlourPriceWomen,
+    this.homePriceMen,
+    this.homePriceWomen,
+    this.parlourDurationMen,
+    this.parlourDurationWomen,
+    this.homeDurationMen,
+    this.homeDurationWomen,
+  });
+
+  final String serviceId;
+  final DateTime overrideDate;
+  final double? parlourPriceMen;
+  final double? parlourPriceWomen;
+  final double? homePriceMen;
+  final double? homePriceWomen;
+  final int? parlourDurationMen;
+  final int? parlourDurationWomen;
+  final int? homeDurationMen;
+  final int? homeDurationWomen;
+
+  factory ServicePricingOverride.fromJson(Map<String, dynamic> json) {
+    double? numVal(dynamic v) =>
+        v == null ? null : (v as num).toDouble();
+    int? intVal(dynamic v) => v == null ? null : (v as num).toInt();
+    return ServicePricingOverride(
+      serviceId: json['service_id']?.toString() ?? '',
+      overrideDate: parseOverrideDate(json['override_date']),
+      parlourPriceMen: numVal(json['parlour_price_men']),
+      parlourPriceWomen: numVal(json['parlour_price_women']),
+      homePriceMen: numVal(json['home_price_men']),
+      homePriceWomen: numVal(json['home_price_women']),
+      parlourDurationMen: intVal(json['parlour_duration_men']),
+      parlourDurationWomen: intVal(json['parlour_duration_women']),
+      homeDurationMen: intVal(json['home_duration_men']),
+      homeDurationWomen: intVal(json['home_duration_women']),
+    );
+  }
+}
+
+class PartnerWeekInventory {
+  const PartnerWeekInventory({
+    required this.availability,
+    required this.pricing,
+  });
+
+  final List<ServiceAvailabilityOverride> availability;
+  final List<ServicePricingOverride> pricing;
+
+  factory PartnerWeekInventory.fromJson(Map<String, dynamic> json) {
+    List<T> parseList<T>(
+      dynamic raw,
+      T Function(Map<String, dynamic>) fromMap,
+    ) {
+      if (raw == null) return [];
+      return (raw as List<dynamic>)
+          .map((e) => fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    return PartnerWeekInventory(
+      availability: parseList(
+        json['availability'],
+        (m) => ServiceAvailabilityOverride.fromJson(m),
+      ),
+      pricing: parseList(
+        json['pricing'],
+        (m) => ServicePricingOverride.fromJson(m),
+      ),
+    );
+  }
+}
+
 class ServiceAvailabilityOverride {
   const ServiceAvailabilityOverride({
     required this.id,
@@ -61,10 +143,10 @@ class ServiceAvailabilityOverride {
 
   factory ServiceAvailabilityOverride.fromJson(Map<String, dynamic> json) {
     return ServiceAvailabilityOverride(
-      id: json['id'] as String,
-      serviceId: json['service_id'] as String,
-      overrideDate: DateTime.parse(json['override_date'] as String),
-      visitType: VisitType.fromDbValue(json['visit_type'] as String?),
+      id: json['id']?.toString() ?? '',
+      serviceId: json['service_id']?.toString() ?? '',
+      overrideDate: parseOverrideDate(json['override_date']),
+      visitType: VisitType.fromDbValue(json['visit_type']?.toString()),
       note: json['note'] as String?,
     );
   }

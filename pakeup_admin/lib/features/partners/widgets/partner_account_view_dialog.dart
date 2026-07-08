@@ -33,8 +33,8 @@ class PartnerAccountViewDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFmt = DateFormat('dd MMM yyyy, hh:mm a');
-    final initial = account.businessName.isNotEmpty
-        ? account.businessName[0].toUpperCase()
+    final initial = account.ownerName.isNotEmpty
+        ? account.ownerName[0].toUpperCase()
         : 'P';
 
     return Dialog(
@@ -97,19 +97,27 @@ class PartnerAccountViewDialog extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              account.businessName,
+                              account.ownerName,
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             Text(
-                              account.ownerName,
+                              'Account ID: ${account.accountId}',
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 color: AppColors.textSecondary,
                               ),
                             ),
+                            if (account.storeCount > 0)
+                              Text(
+                                '${account.storeCount} store${account.storeCount == 1 ? '' : 's'} linked',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                             const SizedBox(height: 6),
                             Wrap(
                               spacing: 8,
@@ -170,6 +178,18 @@ class PartnerAccountViewDialog extends StatelessWidget {
                                       ?.trim()
                                       .isNotEmpty !=
                                   true,
+                            ),
+                            _AccountInfoItem(
+                              icon: Icons.savings_outlined,
+                              label: 'Account Type',
+                              value: account.displayAccountType,
+                              muted: account.accountType?.trim().isNotEmpty != true,
+                            ),
+                            _AccountInfoItem(
+                              icon: Icons.payment_rounded,
+                              label: 'UPI ID',
+                              value: account.displayUpiId,
+                              muted: account.upiId?.trim().isNotEmpty != true,
                             ),
                           ],
                         ),

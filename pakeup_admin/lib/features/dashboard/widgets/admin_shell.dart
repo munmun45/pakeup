@@ -468,6 +468,9 @@ class _MainContentScroll extends StatefulWidget {
 class _MainContentScrollState extends State<_MainContentScroll> {
   final _scrollController = ScrollController();
 
+  /// Full-viewport pages manage their own scroll areas (nested grids/tables).
+  static const _viewportPageKeys = {'partner_inventory'};
+
   @override
   void didUpdateWidget(_MainContentScroll oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -491,6 +494,13 @@ class _MainContentScrollState extends State<_MainContentScroll> {
 
   @override
   Widget build(BuildContext context) {
+    if (_viewportPageKeys.contains(widget.pageKey)) {
+      return Padding(
+        padding: const EdgeInsets.all(28),
+        child: widget.child,
+      );
+    }
+
     return SmoothScrollView(
       controller: _scrollController,
       padding: const EdgeInsets.all(28),

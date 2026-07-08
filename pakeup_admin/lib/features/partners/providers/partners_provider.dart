@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/supabase_provider.dart';
+import '../../../core/utils/list_sort.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/partners_repository.dart';
 import 'partner_kyc_provider.dart';
@@ -17,7 +18,8 @@ final partnersListProvider = FutureProvider<List<PartnerRecord>>((ref) async {
   if (user == null) return [];
 
   final repo = ref.watch(partnersRepositoryProvider);
-  return repo.listPartners(user.id);
+  return (await repo.listPartners(user.id))
+      .sortedByNewest((p) => p.createdAt);
 });
 
 final partnerOwnerAccountsListProvider =
@@ -26,5 +28,6 @@ final partnerOwnerAccountsListProvider =
   if (user == null) return [];
 
   final repo = ref.watch(partnersRepositoryProvider);
-  return repo.listPartnerAccounts(user.id);
+  return (await repo.listPartnerAccounts(user.id))
+      .sortedByNewest((a) => a.createdAt);
 });

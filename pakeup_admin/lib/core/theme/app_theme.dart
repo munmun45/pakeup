@@ -16,6 +16,8 @@ class AppColors {
   static const Color warning = Color(0xFFF57C00);
   static const Color error = Color(0xFFD32F2F);
   static const Color border = Color(0xFFE8E0E5);
+  /// Highlight for the current calendar day (distinct from brand primary).
+  static const Color today = Color(0xFF1976D2);
 }
 
 class AppTheme {

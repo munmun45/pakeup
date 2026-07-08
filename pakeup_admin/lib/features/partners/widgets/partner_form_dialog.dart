@@ -9,12 +9,14 @@ import '../../shared/widgets/app_snackbar.dart';
 import '../data/partner_categories_repository.dart';
 import '../data/partners_repository.dart';
 import '../models/partner_location_data.dart';
+import '../models/partner_schedule_models.dart';
 import '../providers/partner_categories_provider.dart';
 import '../providers/partners_provider.dart';
 import '../utils/partner_map_utils.dart';
 import 'partner_form_field.dart';
 import 'partner_images_dialog.dart';
 import 'partner_location_picker.dart';
+import 'partner_open_hours_section.dart';
 
 class PartnerFormDialog extends ConsumerStatefulWidget {
   const PartnerFormDialog({
@@ -54,6 +56,7 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
   String? _selectedAccountId;
   bool _submitting = false;
   String _accountSearchQuery = '';
+  List<DaySchedule> _schedules = DaySchedule.defaults();
 
   @override
   void initState() {
@@ -77,6 +80,9 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
     _lngCtrl = TextEditingController(text: e?.longitude?.toString() ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _category = e?.category;
+    _schedules = e?.schedules.isNotEmpty == true
+        ? List<DaySchedule>.from(e!.schedules)
+        : DaySchedule.defaults();
     if (e != null) {
       _selectedAccountId = e.accountId;
       _useExistingAccount = e.accountId != null;
@@ -142,6 +148,7 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
       latitude: lat,
       longitude: lng,
       notes: _emptyToNull(_notesCtrl.text),
+      schedules: _schedules,
     );
   }
 
@@ -684,6 +691,19 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
   }
 
 
+  Widget _openingHoursSection() {
+    return PartnerFormSection(
+      title: 'Opening Hours',
+      icon: Icons.access_time_rounded,
+      children: [
+        PartnerOpenHoursSection(
+          schedules: _schedules,
+          onChanged: (v) => setState(() => _schedules = v),
+        ),
+      ],
+    );
+  }
+
   Widget _locationSection({required bool wide}) {
     final mapsKey = Env.googleMapsApiKey;
 
@@ -859,6 +879,8 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                                   ),
                                   const SizedBox(height: 16),
                                   _locationSection(wide: true),
+                                  const SizedBox(height: 16),
+                                  _openingHoursSection(),
                                 ],
                               );
                             }
@@ -872,6 +894,8 @@ class _PartnerFormDialogState extends ConsumerState<PartnerFormDialog> {
                                 _businessSection(categories),
                                 const SizedBox(height: 16),
                                 _locationSection(wide: false),
+                                const SizedBox(height: 16),
+                                _openingHoursSection(),
                               ],
                             );
                           },

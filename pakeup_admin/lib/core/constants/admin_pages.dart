@@ -173,7 +173,7 @@ class AdminPages {
     ),
     AdminPageDef(
       key: 'partner_manage_accounts',
-      label: 'Manage Accounts',
+      label: 'Bank Accounts',
       icon: Icons.account_balance_wallet_rounded,
       route: '/partners/accounts',
       group: 'partners',

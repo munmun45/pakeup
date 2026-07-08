@@ -34,7 +34,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
   @override
   void didUpdateWidget(_CalendarTab old) {
     super.didUpdateWidget(old);
-    if (old.services != widget.services && _selectedService == null && widget.services.isNotEmpty) {
+    if (old.services != widget.services &&
+        _selectedService == null &&
+        widget.services.isNotEmpty) {
       _selectedService = widget.services.first;
       _loadOverrides();
     }
@@ -58,7 +60,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
         _overridesByDate = {
           for (final o in overrides)
             '${o.overrideDate.year}-${o.overrideDate.month.toString().padLeft(2, '0')}-${o.overrideDate.day.toString().padLeft(2, '0')}':
-                o
+                o,
         };
       });
     } finally {
@@ -130,8 +132,7 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
   void _goMonth(int delta) {
     setState(() {
-      _displayMonth =
-          DateTime(_displayMonth.year, _displayMonth.month + delta);
+      _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + delta);
       _overridesByDate = {};
     });
     _loadOverrides();
@@ -141,8 +142,10 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
   Widget build(BuildContext context) {
     if (widget.services.isEmpty) {
       return const Center(
-        child: Text('No services. Add services first.',
-            style: TextStyle(color: AppColors.textSecondary)),
+        child: Text(
+          'No services. Add services first.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
 
@@ -154,15 +157,16 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           width: 280,
           child: Container(
             decoration: const BoxDecoration(
-              border: Border(
-                  right: BorderSide(color: AppColors.border)),
+              border: Border(right: BorderSide(color: AppColors.border)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   color: const Color(0xFFFAF8FA),
                   child: const Text(
                     'SELECT SERVICE',
@@ -189,7 +193,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: selected
                                 ? AppColors.primary.withValues(alpha: 0.05)
@@ -197,12 +203,16 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                             border: selected
                                 ? const Border(
                                     left: BorderSide(
-                                        color: AppColors.primary,
-                                        width: 3))
+                                      color: AppColors.primary,
+                                      width: 3,
+                                    ),
+                                  )
                                 : const Border(
                                     left: BorderSide(
-                                        color: Colors.transparent,
-                                        width: 3)),
+                                      color: Colors.transparent,
+                                      width: 3,
+                                    ),
+                                  ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,8 +232,9 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                               Text(
                                 s.partnerName,
                                 style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary),
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -252,28 +263,35 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                   runSpacing: 8,
                   children: [
                     _LegendChip(
-                        color: AppColors.surface,
-                        label: 'Available (Default)',
-                        border: true),
+                      color: AppColors.surface,
+                      label: 'Available (Default)',
+                      border: true,
+                    ),
                     _LegendChip(
-                        color: const Color(0xFFFF4D4D).withValues(alpha: 0.85),
-                        label: 'Unavailable'),
+                      color: const Color(0xFFFF4D4D).withValues(alpha: 0.85),
+                      label: 'Unavailable',
+                    ),
                     _LegendChip(
-                        color: const Color(0xFF8E54E9).withValues(alpha: 0.8),
-                        label: 'Parlour Only'),
+                      color: const Color(0xFF8E54E9).withValues(alpha: 0.8),
+                      label: 'Parlour Only',
+                    ),
                     _LegendChip(
-                        color: const Color(0xFF44A0E3).withValues(alpha: 0.85),
-                        label: 'Home Only'),
+                      color: const Color(0xFF44A0E3).withValues(alpha: 0.85),
+                      label: 'Home Only',
+                    ),
                     _LegendChip(
-                        color: const Color(0xFF2ECC71).withValues(alpha: 0.85),
-                        label: 'Both (Override)'),
+                      color: const Color(0xFF2ECC71).withValues(alpha: 0.85),
+                      label: 'Both (Override)',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 const Text(
                   'Tap a date to cycle: Default → Unavailable → Parlour Only → Home Only → Both → Default',
                   style: TextStyle(
-                      fontSize: 11, color: AppColors.textSecondary),
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -305,9 +323,10 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
                       const Padding(
                         padding: EdgeInsets.only(left: 8),
                         child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
                   ],
                 ),
@@ -316,28 +335,31 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
                 // Day-of-week header
                 Row(
-                  children: const [
-                    'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
-                  ]
-                      .map((d) => Expanded(
-                            child: Center(
-                              child: Text(d,
+                  children:
+                      const ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                          .map(
+                            (d) => Expanded(
+                              child: Center(
+                                child: Text(
+                                  d,
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textSecondary,
-                                  )),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ))
-                      .toList(),
+                          )
+                          .toList(),
                 ),
                 const SizedBox(height: 6),
 
                 // Calendar grid
                 _loadingOverrides
                     ? const Expanded(
-                        child:
-                            Center(child: CircularProgressIndicator()))
+                        child: Center(child: CircularProgressIndicator()),
+                      )
                     : Expanded(child: _buildCalendarGrid()),
               ],
             ),
@@ -348,11 +370,13 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
   }
 
   Widget _buildCalendarGrid() {
-    final firstDay =
-        DateTime(_displayMonth.year, _displayMonth.month, 1);
+    final firstDay = DateTime(_displayMonth.year, _displayMonth.month, 1);
     final startOffset = firstDay.weekday % 7; // Sun=0
-    final daysInMonth =
-        DateTime(_displayMonth.year, _displayMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      _displayMonth.year,
+      _displayMonth.month + 1,
+      0,
+    ).day;
     final totalCells = startOffset + daysInMonth;
     final rows = (totalCells / 7).ceil();
 
@@ -371,13 +395,13 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
           return const SizedBox.shrink();
         }
 
-        final day =
-            DateTime(_displayMonth.year, _displayMonth.month, dayNum);
+        final day = DateTime(_displayMonth.year, _displayMonth.month, dayNum);
         final key =
             '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
         final override = _overridesByDate[key];
 
-        final isToday = day.year == DateTime.now().year &&
+        final isToday =
+            day.year == DateTime.now().year &&
             day.month == DateTime.now().month &&
             day.day == DateTime.now().day;
 
@@ -393,8 +417,19 @@ class _CalendarTabState extends ConsumerState<_CalendarTab> {
 
   String _monthLabel(DateTime d) {
     const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[d.month]} ${d.year}';
   }
@@ -441,8 +476,8 @@ class _DayCell extends StatelessWidget {
             color: isToday
                 ? AppColors.primary
                 : availabilityOverride != null
-                    ? Colors.transparent
-                    : AppColors.border,
+                ? Colors.transparent
+                : AppColors.border,
             width: isToday ? 2 : 1,
           ),
         ),
@@ -453,8 +488,7 @@ class _DayCell extends StatelessWidget {
               '$day',
               style: TextStyle(
                 fontSize: 13,
-                fontWeight:
-                    isToday ? FontWeight.w900 : FontWeight.w600,
+                fontWeight: isToday ? FontWeight.w900 : FontWeight.w600,
                 color: _textColor(),
               ),
             ),
@@ -462,7 +496,10 @@ class _DayCell extends StatelessWidget {
               Text(
                 _shortLabel(availabilityOverride!.visitType),
                 style: const TextStyle(
-                    fontSize: 8, color: Colors.white70, height: 1.2),
+                  fontSize: 8,
+                  color: Colors.white70,
+                  height: 1.2,
+                ),
               ),
           ],
         ),
@@ -485,8 +522,11 @@ class _DayCell extends StatelessWidget {
 }
 
 class _LegendChip extends StatelessWidget {
-  const _LegendChip(
-      {required this.color, required this.label, this.border = false});
+  const _LegendChip({
+    required this.color,
+    required this.label,
+    this.border = false,
+  });
 
   final Color color;
   final String label;
@@ -494,25 +534,36 @@ class _LegendChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-            border: border
-                ? Border.all(color: AppColors.border)
-                : null,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: border ? Colors.transparent : color,
+              shape: BoxShape.circle,
+              border: border ? Border.all(color: color, width: 1.5) : null,
+            ),
           ),
-        ),
-        const SizedBox(width: 5),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11, color: AppColors.textSecondary)),
-      ],
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -27,6 +27,10 @@ class AppSnackBar {
     show(context, message, bg: const Color(0xFFD32F2F));
   }
 
+  static void warning(BuildContext context, String message) {
+    show(context, message, bg: const Color(0xFFE65100));
+  }
+
   static void actionFailed(BuildContext context, String action, Object err) {
     AppSnackBar.error(
       context,

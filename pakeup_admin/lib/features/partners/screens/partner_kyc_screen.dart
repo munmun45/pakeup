@@ -274,12 +274,47 @@ class PartnerKycScreen extends ConsumerWidget {
     WidgetRef ref,
     PartnerRecord partner,
   ) async {
+    final accounts = await ref.read(partnerAccountsListProvider.future);
+    PartnerAccountRecord? account;
+    for (final a in accounts) {
+      if (a.accountId == partner.accountId) {
+        account = a;
+        break;
+      }
+    }
+
+    account ??= PartnerAccountRecord(
+      accountId: partner.accountId ?? '',
+      ownerName: partner.ownerName,
+      phone: partner.phone,
+      email: partner.email,
+      primaryImage: partner.primaryImage,
+    );
+
+    if (account.accountId.isEmpty) {
+      if (context.mounted) {
+        AppSnackBar.warning(context, 'Partner account ID not found');
+      }
+      return;
+    }
+
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user != null) {
+      account = await ref.read(partnerKycRepositoryProvider).enrichAccountRecord(
+            callerId: user.id,
+            account: account,
+          );
+    }
+
+    if (!context.mounted) return;
+
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => PartnerBankDetailsDialog(partner: partner),
+      builder: (context) => PartnerBankDetailsDialog(account: account!),
     );
     if (saved == true) {
       ref.invalidate(partnerKycOverviewListProvider);
+      ref.invalidate(partnerAccountsListProvider);
     }
   }
 

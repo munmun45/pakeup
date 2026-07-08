@@ -9,8 +9,7 @@ class _VisitSettingsTab extends ConsumerStatefulWidget {
   final List<PartnerServiceRecord> services;
 
   @override
-  ConsumerState<_VisitSettingsTab> createState() =>
-      _VisitSettingsTabState();
+  ConsumerState<_VisitSettingsTab> createState() => _VisitSettingsTabState();
 }
 
 class _VisitSettingsTabState extends ConsumerState<_VisitSettingsTab> {
@@ -61,7 +60,9 @@ class _VisitSettingsTabState extends ConsumerState<_VisitSettingsTab> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(serviceAvailabilityRepositoryProvider).updateServicePricing(
+      await ref
+          .read(serviceAvailabilityRepositoryProvider)
+          .updateServicePricing(
             callerId: user.id,
             serviceId: draft.serviceId,
             isParlourAvailable: draft.isParlourAvailable,
@@ -80,7 +81,8 @@ class _VisitSettingsTabState extends ConsumerState<_VisitSettingsTab> {
           );
       draft.isDirty = false;
       ref.invalidate(partnerServicesListProvider);
-      if (mounted) AppSnackBar.success(context, '${draft.serviceName} updated!');
+      if (mounted)
+        AppSnackBar.success(context, '${draft.serviceName} updated!');
     } catch (e) {
       if (mounted) AppSnackBar.error(context, 'Failed: $e');
     } finally {
@@ -92,8 +94,10 @@ class _VisitSettingsTabState extends ConsumerState<_VisitSettingsTab> {
   Widget build(BuildContext context) {
     if (widget.services.isEmpty) {
       return const Center(
-        child: Text('No services found.',
-            style: TextStyle(color: AppColors.textSecondary)),
+        child: Text(
+          'No services found.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
 
@@ -181,8 +185,11 @@ class _VisitSettingsCardState extends State<_VisitSettingsCard> {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.spa_rounded,
-                      color: AppColors.primary, size: 20),
+                  child: const Icon(
+                    Icons.spa_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -202,7 +209,9 @@ class _VisitSettingsCardState extends State<_VisitSettingsCard> {
                       Text(
                         widget.service.partnerName,
                         style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSecondary),
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -217,8 +226,11 @@ class _VisitSettingsCardState extends State<_VisitSettingsCard> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.save_rounded,
-                            size: 18, color: AppColors.primary),
+                        : const Icon(
+                            Icons.save_rounded,
+                            size: 18,
+                            color: AppColors.primary,
+                          ),
                     tooltip: 'Save',
                     onPressed: widget.saving ? null : widget.onSave,
                   ),
@@ -230,8 +242,7 @@ class _VisitSettingsCardState extends State<_VisitSettingsCard> {
                     size: 20,
                     color: AppColors.textSecondary,
                   ),
-                  onPressed: () =>
-                      setState(() => _expanded = !_expanded),
+                  onPressed: () => setState(() => _expanded = !_expanded),
                 ),
               ],
             ),
@@ -335,33 +346,35 @@ class _VisitSettingsCardState extends State<_VisitSettingsCard> {
                       },
                     ),
                     const SizedBox(height: 8),
-                    Row(children: [
-                      Expanded(
-                        child: _CompactField(
-                          label: 'Free Radius',
-                          suffix: 'km',
-                          initial: d.freeRadiusKm.toString(),
-                          onChanged: (v) {
-                            d.freeRadiusKm = int.tryParse(v) ?? 0;
-                            d.isDirty = true;
-                            widget.onChanged();
-                          },
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _CompactField(
+                            label: 'Free Radius',
+                            suffix: 'km',
+                            initial: d.freeRadiusKm.toString(),
+                            onChanged: (v) {
+                              d.freeRadiusKm = int.tryParse(v) ?? 0;
+                              d.isDirty = true;
+                              widget.onChanged();
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _CompactField(
-                          label: 'Per KM',
-                          prefix: '₹',
-                          initial: d.perKmCharge.toStringAsFixed(0),
-                          onChanged: (v) {
-                            d.perKmCharge = double.tryParse(v) ?? 0;
-                            d.isDirty = true;
-                            widget.onChanged();
-                          },
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _CompactField(
+                            label: 'Per KM',
+                            prefix: '₹',
+                            initial: d.perKmCharge.toStringAsFixed(0),
+                            onChanged: (v) {
+                              d.perKmCharge = double.tryParse(v) ?? 0;
+                              d.isDirty = true;
+                              widget.onChanged();
+                            },
+                          ),
                         ),
-                      ),
-                    ]),
+                      ],
+                    ),
                   ],
 
                   if (!_expanded) ...[
@@ -371,9 +384,10 @@ class _VisitSettingsCardState extends State<_VisitSettingsCard> {
                       child: const Text(
                         'Tap ▲ to configure per-gender pricing...',
                         style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                            fontStyle: FontStyle.italic),
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ],
@@ -407,21 +421,15 @@ class _VisitToggleRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: value
-            ? color.withValues(alpha: 0.07)
-            : const Color(0xFFF5F5F5),
+        color: value ? color.withValues(alpha: 0.07) : const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
-          color: value
-              ? color.withValues(alpha: 0.25)
-              : AppColors.border,
+          color: value ? color.withValues(alpha: 0.25) : AppColors.border,
         ),
       ),
       child: Row(
         children: [
-          Icon(icon,
-              size: 17,
-              color: value ? color : AppColors.textSecondary),
+          Icon(icon, size: 17, color: value ? color : AppColors.textSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -473,9 +481,10 @@ class _GenderPricingRow extends StatelessWidget {
           child: Text(
             gender,
             style: TextStyle(
-                fontSize: 11.5,
-                color: color,
-                fontWeight: FontWeight.w700),
+              fontSize: 11.5,
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         Expanded(
@@ -484,8 +493,7 @@ class _GenderPricingRow extends StatelessWidget {
             prefix: '₹',
             initial: price?.toStringAsFixed(0) ?? '',
             onChanged: (v) {
-              onChanged(
-                  double.tryParse(v), duration);
+              onChanged(double.tryParse(v), duration);
             },
           ),
         ),
@@ -543,21 +551,21 @@ class _CompactFieldState extends State<_CompactField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _ctrl,
-      keyboardType:
-          const TextInputType.numberWithOptions(decimal: true),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       style: const TextStyle(fontSize: 12),
       onChanged: widget.onChanged,
       decoration: InputDecoration(
         labelText: widget.label,
-        labelStyle:
-            const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+        labelStyle: const TextStyle(
+          fontSize: 10.5,
+          color: AppColors.textSecondary,
+        ),
         prefixText: widget.prefix,
         suffixText: widget.suffix,
         prefixStyle: const TextStyle(fontSize: 11),
         suffixStyle: const TextStyle(fontSize: 10),
         isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(7),
           borderSide: const BorderSide(color: AppColors.border),
@@ -568,8 +576,7 @@ class _CompactFieldState extends State<_CompactField> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(7),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
     );

@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_snackbar.dart';
-import '../data/partners_repository.dart';
 import '../models/partner_kyc_models.dart';
 import '../providers/partner_kyc_provider.dart';
 import '../utils/kyc_document_limits.dart';
@@ -15,9 +14,9 @@ import 'kyc_document_upload_tile.dart';
 import 'partner_form_field.dart';
 
 class PartnerBankDetailsDialog extends ConsumerStatefulWidget {
-  const PartnerBankDetailsDialog({super.key, required this.partner});
+  const PartnerBankDetailsDialog({super.key, required this.account});
 
-  final PartnerRecord partner;
+  final PartnerAccountRecord account;
 
   @override
   ConsumerState<PartnerBankDetailsDialog> createState() =>
@@ -32,8 +31,10 @@ class _PartnerBankDetailsDialogState
   late final TextEditingController _ifscCtrl;
   late final TextEditingController _accountCtrl;
   late final TextEditingController _confirmAccountCtrl;
+  late final TextEditingController _upiCtrl;
 
   final _LocalDoc _passbook = _LocalDoc();
+  String _accountType = 'savings';
   bool _loading = true;
   bool _submitting = false;
 
@@ -45,7 +46,20 @@ class _PartnerBankDetailsDialogState
     _ifscCtrl = TextEditingController();
     _accountCtrl = TextEditingController();
     _confirmAccountCtrl = TextEditingController();
+    _upiCtrl = TextEditingController();
+    _applyAccountData(widget.account);
     _loadExisting();
+  }
+
+  void _applyAccountData(PartnerAccountRecord account) {
+    _holderCtrl.text = account.bankAccountHolder ?? '';
+    _bankCtrl.text = account.bankName ?? '';
+    _ifscCtrl.text = account.ifscCode ?? '';
+    _accountCtrl.text = account.accountNumber ?? '';
+    _confirmAccountCtrl.text = _accountCtrl.text;
+    _upiCtrl.text = account.upiId ?? '';
+    _accountType = account.accountType ?? 'savings';
+    _passbook.existingUrl = account.passbookDocUrl;
   }
 
   Future<void> _loadExisting() async {
@@ -56,19 +70,25 @@ class _PartnerBankDetailsDialogState
     }
 
     try {
-      final kyc = await ref.read(partnerKycRepositoryProvider).getKyc(
+      final bank = await ref.read(partnerKycRepositoryProvider).getBankAccount(
             callerId: user.id,
-            partnerId: widget.partner.id,
+            accountId: widget.account.accountId,
           );
-      if (kyc != null && mounted) {
-        _holderCtrl.text = kyc.bankAccountHolder ?? '';
-        _bankCtrl.text = kyc.bankName ?? '';
-        _ifscCtrl.text = kyc.ifscCode ?? '';
-        _accountCtrl.text = kyc.accountNumber ?? '';
-        _confirmAccountCtrl.text = kyc.accountNumber ?? '';
-        _passbook.existingUrl = kyc.passbookDocUrl;
+      if (!mounted) return;
+
+      if (bank != null) {
+        _holderCtrl.text = bank.bankAccountHolder ?? _holderCtrl.text;
+        _bankCtrl.text = bank.bankName ?? _bankCtrl.text;
+        _ifscCtrl.text = bank.ifscCode ?? _ifscCtrl.text;
+        _accountCtrl.text = bank.accountNumber ?? _accountCtrl.text;
+        _confirmAccountCtrl.text = _accountCtrl.text;
+        _upiCtrl.text = bank.upiId ?? _upiCtrl.text;
+        _accountType = bank.accountType ?? _accountType;
+        _passbook.existingUrl = bank.passbookDocUrl ?? _passbook.existingUrl;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Keep values already loaded from widget.account.
+    }
 
     if (mounted) setState(() => _loading = false);
   }
@@ -81,6 +101,7 @@ class _PartnerBankDetailsDialogState
       _ifscCtrl,
       _accountCtrl,
       _confirmAccountCtrl,
+      _upiCtrl,
     ]) {
       c.dispose();
     }
@@ -157,33 +178,32 @@ class _PartnerBankDetailsDialogState
 
     try {
       final repo = ref.read(partnerKycRepositoryProvider);
-      final partnerId = widget.partner.id;
+      final accountId = widget.account.accountId;
 
       String? passbookUrl = _passbook.existingUrl;
       if (_passbook.localPath != null) {
-        passbookUrl = await repo.uploadDocument(
-          partnerId: partnerId,
+        passbookUrl = await repo.uploadBankDocument(
+          accountId: accountId,
           docType: KycDocType.passbook,
           localPath: _passbook.localPath!,
         );
       }
 
-      await repo.saveKyc(
+      await repo.saveBankAccount(
         callerId: user.id,
-        partnerId: partnerId,
-        markSubmitted: false,
-        data: PartnerKycFormData(
-          bankAccountHolder: _holderCtrl.text.trim(),
-          bankName: _bankCtrl.text.trim(),
-          ifscCode: _ifscCtrl.text.trim().toUpperCase(),
-          accountNumber: _accountCtrl.text.trim(),
-          passbookDocUrl: passbookUrl,
-        ),
+        accountId: accountId,
+        bankAccountHolder: _holderCtrl.text.trim(),
+        bankName: _bankCtrl.text.trim(),
+        ifscCode: _ifscCtrl.text.trim().toUpperCase(),
+        accountNumber: _accountCtrl.text.trim(),
+        passbookDocUrl: passbookUrl,
+        accountType: _accountType,
+        upiId: _upiCtrl.text.trim().isEmpty ? null : _upiCtrl.text.trim(),
       );
 
       await repo.setAccountStatus(
         callerId: user.id,
-        partnerId: partnerId,
+        accountId: accountId,
         status: 'pending',
       );
 
@@ -203,8 +223,8 @@ class _PartnerBankDetailsDialogState
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final initial = widget.partner.businessName.isNotEmpty
-        ? widget.partner.businessName[0].toUpperCase()
+    final initial = widget.account.ownerName.isNotEmpty
+        ? widget.account.ownerName[0].toUpperCase()
         : 'P';
 
     return Dialog(
@@ -268,14 +288,14 @@ class _PartnerBankDetailsDialogState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Account Details',
+                              'Bank Account',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             Text(
-                              widget.partner.businessName,
+                              '${widget.account.ownerName} · ID ${widget.account.shortAccountId}',
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 color: AppColors.textSecondary,
@@ -425,6 +445,95 @@ class _PartnerBankDetailsDialogState
                                             ),
                                           ],
                                         ),
+                                        const SizedBox(height: 12),
+                                        const Text(
+                                          'Account Type',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            for (final type
+                                                in ['savings', 'current'])
+                                              Expanded(
+                                                child: Padding(
+                                                  padding: EdgeInsets.only(
+                                                    right: type == 'savings'
+                                                        ? 6
+                                                        : 0,
+                                                    left: type == 'current'
+                                                        ? 6
+                                                        : 0,
+                                                  ),
+                                                  child: GestureDetector(
+                                                    onTap: () => setState(
+                                                      () => _accountType = type,
+                                                    ),
+                                                    child: AnimatedContainer(
+                                                      duration: const Duration(
+                                                        milliseconds: 150,
+                                                      ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                        vertical: 10,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: _accountType ==
+                                                                type
+                                                            ? AppColors.primary
+                                                                .withValues(
+                                                              alpha: 0.1,
+                                                            )
+                                                            : AppColors.surface,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        border: Border.all(
+                                                          color: _accountType ==
+                                                                  type
+                                                              ? AppColors
+                                                                  .primary
+                                                              : AppColors.border,
+                                                          width: _accountType ==
+                                                                  type
+                                                              ? 2
+                                                              : 1,
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        type[0].toUpperCase() +
+                                                            type.substring(1),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          fontSize: 12.5,
+                                                          color: _accountType ==
+                                                                  type
+                                                              ? AppColors
+                                                                  .primary
+                                                              : AppColors
+                                                                  .textSecondary,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        PartnerFormField(
+                                          label: 'UPI ID (Optional)',
+                                          icon: Icons.payment_rounded,
+                                          controller: _upiCtrl,
+                                          keyboard:
+                                              TextInputType.emailAddress,
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -507,7 +616,11 @@ class _PartnerBankDetailsDialogState
                               )
                             : const Icon(Icons.save_outlined, size: 18),
                         label: Text(
-                          _submitting ? 'Saving...' : 'Save Account Details',
+                          _submitting
+                              ? 'Saving...'
+                              : (widget.account.hasBankDetails
+                                  ? 'Update Account Details'
+                                  : 'Save Account Details'),
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,

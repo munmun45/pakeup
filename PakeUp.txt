@@ -45,7 +45,7 @@ CUSTOMER APP:
    - Like, save, share
    - Book directly from reels
 
-4. Salon Booking
+4. Salon Bookingimage.png
    - In-salon booking
    - Home visit booking
    - Date and time selection

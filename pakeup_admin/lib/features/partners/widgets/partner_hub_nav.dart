@@ -34,7 +34,7 @@ class PartnerHubNavHeaders extends StatelessWidget {
           children: [
             _HubHeader(label: 'KYC', width: kycWidth),
             SizedBox(width: gap),
-            _HubHeader(label: 'ACCT', width: accountWidth),
+            _HubHeader(label: 'BANK', width: accountWidth),
             SizedBox(width: gap),
             _HubHeader(label: 'SVC', width: serviceWidth),
           ],
@@ -83,7 +83,7 @@ class PartnerHubNavRow extends ConsumerWidget {
                 ref,
                 context,
                 page: PartnerHubPage.account,
-                label: 'Acct',
+                label: 'Bank',
                 icon: Icons.account_balance_wallet_outlined,
                 color: const Color(0xFF7B1FA2),
               ),

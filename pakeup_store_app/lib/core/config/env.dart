@@ -18,4 +18,29 @@ class Env {
     }
     return key;
   }
+
+  static String? get googleMapsApiKey {
+    final key = dotenv.env['GOOGLE_MAPS_API_KEY'];
+    if (key == null || key.isEmpty || key.contains('paste-your')) {
+      return null;
+    }
+    return key;
+  }
+
+  static String get supportPhone =>
+      _envOrDefault('SUPPORT_PHONE', AppConstants.supportPhone);
+
+  static String get supportWhatsApp =>
+      _envOrDefault('SUPPORT_WHATSAPP', AppConstants.supportWhatsApp);
+
+  static String get supportEmail =>
+      _envOrDefault('SUPPORT_EMAIL', AppConstants.supportEmail);
+
+  static String _envOrDefault(String key, String fallback) {
+    final value = dotenv.env[key]?.trim();
+    if (value == null || value.isEmpty || value.contains('paste-your')) {
+      return fallback;
+    }
+    return value;
+  }
 }

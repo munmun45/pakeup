@@ -44,4 +44,11 @@ class AuthNotifier extends AsyncNotifier<PartnerUser?> {
     await _repository.logout();
     state = const AsyncData(null);
   }
+
+  Future<void> refreshSession() async {
+    final user = await _repository.refreshSession();
+    if (user != null) {
+      state = AsyncData(user);
+    }
+  }
 }

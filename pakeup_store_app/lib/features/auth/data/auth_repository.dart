@@ -26,6 +26,8 @@ class PartnerUser {
     required this.ownerName,
     required this.loginId,
     this.phone,
+    this.whatsapp,
+    this.alternatePhone,
     this.email,
     this.city,
     this.category = 'salon',
@@ -40,6 +42,8 @@ class PartnerUser {
   final String ownerName;
   final String loginId;
   final String? phone;
+  final String? whatsapp;
+  final String? alternatePhone;
   final String? email;
   final String? city;
   final String category;
@@ -50,12 +54,36 @@ class PartnerUser {
 
   bool get isKycApproved => kycStatus == 'approved';
 
+  PartnerUser copyWith({
+    String? whatsapp,
+    String? alternatePhone,
+    String? email,
+  }) =>
+      PartnerUser(
+        id: id,
+        businessName: businessName,
+        ownerName: ownerName,
+        loginId: loginId,
+        phone: phone,
+        whatsapp: whatsapp ?? this.whatsapp,
+        alternatePhone: alternatePhone ?? this.alternatePhone,
+        email: email ?? this.email,
+        city: city,
+        category: category,
+        isActive: isActive,
+        kycStatus: kycStatus,
+        createdAt: createdAt,
+        storeCount: storeCount,
+      );
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'business_name': businessName,
         'owner_name': ownerName,
         'login_id': loginId,
         'phone': phone,
+        'whatsapp': whatsapp,
+        'alternate_phone': alternatePhone,
         'email': email,
         'city': city,
         'category': category,
@@ -64,12 +92,21 @@ class PartnerUser {
         'created_at': createdAt?.toIso8601String(),
       };
 
-  factory PartnerUser.fromJson(Map<String, dynamic> json) => PartnerUser(
+  factory PartnerUser.fromJson(Map<String, dynamic> json) {
+    final loginId = json['login_id'] as String? ?? '';
+    final rawPhone = json['phone'] as String?;
+    final phone = (rawPhone != null && rawPhone.trim().isNotEmpty)
+        ? rawPhone.trim()
+        : (loginId.trim().isNotEmpty ? loginId.trim() : null);
+
+    return PartnerUser(
         id: json['id'] as String,
         businessName: json['business_name'] as String,
         ownerName: json['owner_name'] as String,
-        loginId: json['login_id'] as String? ?? '',
-        phone: json['phone'] as String?,
+        loginId: loginId,
+        phone: phone,
+        whatsapp: json['whatsapp'] as String?,
+        alternatePhone: json['alternate_phone'] as String?,
         email: json['email'] as String?,
         city: json['city'] as String?,
         category: json['category'] as String? ?? 'salon',
@@ -78,6 +115,7 @@ class PartnerUser {
         createdAt: _parseDate(json['created_at']),
         storeCount: json['store_count'] as int? ?? 1,
       );
+  }
 }
 
 DateTime? _parseDate(dynamic value) {
@@ -118,8 +156,14 @@ class AuthRepository {
       return PartnerUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (_) {
       await prefs.remove(AppConstants.sessionKey);
+      await prefs.remove(AppConstants.sessionPassKey);
       return null;
     }
+  }
+
+  Future<String?> getStoredLoginPass() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.sessionPassKey);
   }
 
   Future<List<PartnerCategoryOption>> listCategories() async {
@@ -160,7 +204,7 @@ class AuthRepository {
     }
 
     final user = PartnerUser.fromJson(data);
-    await _saveSession(user);
+    await _saveSession(user, loginPass: password);
     return user;
   }
 
@@ -180,18 +224,38 @@ class AuthRepository {
 
     final map = Map<String, dynamic>.from(result as Map);
     final user = PartnerUser.fromJson(map);
-    await _saveSession(user);
+    await _saveSession(user, loginPass: data.password);
     return user;
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.sessionKey);
+    await prefs.remove(AppConstants.sessionPassKey);
   }
 
-  Future<void> _saveSession(PartnerUser user) async {
+  /// Re-fetches partner profile from the server and updates the local session.
+  Future<PartnerUser?> refreshSession() async {
+    final current = await getCurrentUser();
+    final loginPass = await getStoredLoginPass();
+    final loginId = current?.loginId.trim().isNotEmpty == true
+        ? current!.loginId.trim()
+        : current?.phone?.trim();
+    if (loginId == null || loginId.isEmpty || loginPass == null) {
+      return current;
+    }
+
+    try {
+      return await login(phone: loginId, password: loginPass);
+    } catch (_) {
+      return current;
+    }
+  }
+
+  Future<void> _saveSession(PartnerUser user, {required String loginPass}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.sessionKey, jsonEncode(user.toJson()));
+    await prefs.setString(AppConstants.sessionPassKey, loginPass);
   }
 }
 

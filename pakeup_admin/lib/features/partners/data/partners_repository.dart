@@ -4,6 +4,7 @@ import 'package:image/image.dart' as img;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'partner_kyc_repository.dart';
+import '../models/partner_schedule_models.dart';
 
 class PartnerRecord {
   const PartnerRecord({
@@ -38,6 +39,7 @@ class PartnerRecord {
     this.createdAt,
     this.images = const [],
     this.primaryImage,
+    this.schedules = const [],
   });
 
   final String id;
@@ -71,6 +73,7 @@ class PartnerRecord {
   final DateTime? createdAt;
   final List<String> images;
   final String? primaryImage;
+  final List<DaySchedule> schedules;
 
   String get displayCategory => categoryName ?? category;
 
@@ -109,6 +112,7 @@ class PartnerRecord {
           : null,
       images: (json['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       primaryImage: json['primary_image'] as String?,
+      schedules: DaySchedule.parseList(json['schedules']),
     );
   }
 
@@ -191,6 +195,7 @@ class PartnerFormData {
     this.latitude,
     this.longitude,
     this.notes,
+    this.schedules = const [],
   });
 
   final String businessName;
@@ -212,11 +217,12 @@ class PartnerFormData {
   final double? latitude;
   final double? longitude;
   final String? notes;
+  final List<DaySchedule> schedules;
 
-  Map<String, dynamic> toRpcParams() => {
+  Map<String, dynamic> toRpcParams({bool includeAccountId = true}) => {
         'business_name': businessName,
         'owner_name': ownerName,
-        if (accountId != null) 'account_id': accountId,
+        if (includeAccountId && accountId != null) 'account_id': accountId,
         'phone': phone,
         'email': email,
         'whatsapp': whatsapp,
@@ -233,6 +239,7 @@ class PartnerFormData {
         'latitude': latitude,
         'longitude': longitude,
         'notes': notes,
+        'schedules': schedulesToRpc(schedules),
       };
 }
 
