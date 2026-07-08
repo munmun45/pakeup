@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../shared/widgets/page_scaffold.dart';
 import '../../../core/widgets/pull_to_refresh.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../kyc/widgets/kyc_form_sections.dart';
@@ -70,76 +69,56 @@ class _BankAccountViewScreenState extends ConsumerState<BankAccountViewScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).valueOrNull;
+    final profileId = user?.profileId?.trim();
     final status = bankStatusInfo(_data?['account_status'] as String?);
 
-    return PageScaffold(
-      title: 'Bank Account',
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BankPageAppBar(
+        title: 'Bank Account',
+        profileId: profileId,
+        subtitle: 'Settlement details for your stores',
+      ),
       bottomNavigationBar: _loading || !_showEditAction
           ? null
-          : _BankActionBar(
-              hasData: _hasBankData,
+          : BankGradientButtonBar(
+              label: _hasBankData ? 'Edit Bank Account' : 'Add Bank Account',
+              icon: _hasBankData ? Icons.edit_rounded : Icons.add_rounded,
               onPressed: _openEdit,
             ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : pullToRefresh(
               onRefresh: _load,
-              child: ColoredBox(
-                color: AppColors.background.withValues(alpha: 0.55),
-                child: SingleChildScrollView(
-                  physics: alwaysScrollablePhysics,
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    16,
-                    16,
-                    _showEditAction ? 108 : 24,
-                  ),
+              child: SingleChildScrollView(
+                physics: alwaysScrollablePhysics,
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  14,
+                  16,
+                  _showEditAction ? 100 : 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     BankInfoCard(
                       ownerName: user?.ownerName,
-                      shortAccountId:
-                          user != null ? shortPartnerId(user.id) : null,
+                      profileId: profileId,
                       statusLabel: status.label,
                       statusColor: status.color,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     if (!_hasBankData)
                       _EmptyBankCard(onAdd: _openEdit)
                     else ...[
                       if (_isApproved) ...[
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.success.withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.verified_rounded,
-                                color: AppColors.success,
-                                size: 20,
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Your bank account is approved. Details can no longer be edited.',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: AppColors.textSecondary,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _BankStatusBanner(
+                          color: AppColors.success,
+                          icon: Icons.verified_rounded,
+                          message:
+                              'Your bank account is approved. Details can no longer be edited.',
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                       ],
                       KycStepSection(
                         step: '1',
@@ -180,7 +159,7 @@ class _BankAccountViewScreenState extends ConsumerState<BankAccountViewScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       KycStepSection(
                         step: '2',
                         title: 'UPI',
@@ -197,7 +176,53 @@ class _BankAccountViewScreenState extends ConsumerState<BankAccountViewScreen> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _BankStatusBanner extends StatelessWidget {
+  const _BankStatusBanner({
+    required this.color,
+    required this.icon,
+    required this.message,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+                height: 1.35,
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -210,103 +235,79 @@ class _EmptyBankCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
       decoration: BoxDecoration(
-        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_outlined,
-              color: AppColors.primary,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No bank account added',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Add your bank details to receive settlements from all stores.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add_rounded, size: 20),
-            label: const Text('Add Bank Account'),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _BankActionBar extends StatelessWidget {
-  const _BankActionBar({
-    required this.hasData,
-    required this.onPressed,
-  });
-
-  final bool hasData;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      elevation: 8,
-      shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
-      child: SafeArea(
-        top: false,
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onPressed,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: Colors.white,
+                  size: 28,
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    hasData ? Icons.edit_rounded : Icons.add_rounded,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    hasData ? 'Edit Bank Account' : 'Add Bank Account',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 16),
+              const Text(
+                'No bank account added',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
-            ),
+              const SizedBox(height: 6),
+              const Text(
+                'Add your bank details to receive settlements from all stores.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onAdd,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text(
+                  'Add Bank Account',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ),
       ),

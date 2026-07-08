@@ -71,6 +71,7 @@ class PartnerManageAccountsScreen extends ConsumerWidget {
                 final q = searchQuery;
                 final matches = a.ownerName.toLowerCase().contains(q) ||
                     a.accountId.toLowerCase().contains(q) ||
+                    (a.profileId?.toLowerCase().contains(q) ?? false) ||
                     (a.phone?.toLowerCase().contains(q) ?? false) ||
                     (a.email?.toLowerCase().contains(q) ?? false) ||
                     (a.bankName?.toLowerCase().contains(q) ?? false) ||

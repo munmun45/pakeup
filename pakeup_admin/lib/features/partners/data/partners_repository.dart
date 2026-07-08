@@ -127,6 +127,7 @@ class PartnerOwnerAccount {
   const PartnerOwnerAccount({
     required this.id,
     required this.ownerName,
+    this.profileId,
     this.phone,
     this.email,
     this.whatsapp,
@@ -140,6 +141,7 @@ class PartnerOwnerAccount {
 
   final String id;
   final String ownerName;
+  final String? profileId;
   final String? phone;
   final String? email;
   final String? whatsapp;
@@ -158,6 +160,7 @@ class PartnerOwnerAccount {
   factory PartnerOwnerAccount.fromJson(Map<String, dynamic> json) {
     return PartnerOwnerAccount(
       id: json['id'] as String,
+      profileId: json['profile_id'] as String?,
       ownerName: json['owner_name'] as String,
       phone: json['phone'] as String?,
       email: json['email'] as String?,

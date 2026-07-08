@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/providers/supabase_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../bank/widgets/bank_shared_widgets.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import '../../stores/models/store_models.dart';
 import '../../stores/providers/stores_provider.dart';
@@ -189,57 +190,52 @@ class _AddServiceScreenState extends ConsumerState<AddServiceScreen> {
   @override
   Widget build(BuildContext context) {
     final storesAsync = ref.watch(myStoresProvider);
+    final profileId =
+        ref.watch(authStateProvider).valueOrNull?.profileId?.trim();
     final approvedStores = storesAsync.valueOrNull
             ?.where((s) => s.isKycApproved)
             .toList() ??
         [];
+    StoreRecord? selectedStore = widget.initialStore;
+    if (_selectedStoreId != null) {
+      for (final store in approvedStores) {
+        if (store.id == _selectedStoreId) {
+          selectedStore = store;
+          break;
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Add Service'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _submitting
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child:
-                        CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : TextButton(
-                    onPressed: _submit,
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15),
-                    ),
-                  ),
-          ),
-        ],
+      resizeToAvoidBottomInset: true,
+      appBar: BankPageAppBar(
+        title: 'Add Service',
+        profileId: profileId,
+        subtitle: 'Create a new service for your store',
+      ),
+      bottomNavigationBar: BankGradientButtonBar(
+        label: 'Add Service',
+        icon: Icons.add_rounded,
+        loading: _submitting,
+        onPressed: _submit,
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 108),
           children: [
-            // ── Card 1: Store & Service Details ───────────────────────
-            _Card(
-              icon: Icons.storefront_rounded,
+            if (selectedStore != null) ...[
+              _SelectedStoreBanner(store: selectedStore),
+              const SizedBox(height: 14),
+            ],
+            StoreFormSection(
               title: 'Store & Service Details',
+              subtitle: 'Choose store and enter service info',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Store selector
-                  const _FieldLabel(
+                  const StoreFieldLabel(
                     label: 'Select Store',
                     icon: Icons.store_outlined,
                     required: true,
@@ -254,91 +250,77 @@ class _AddServiceScreenState extends ConsumerState<AddServiceScreen> {
                     isExpanded: true,
                     hint: const Text('Tap to select a store...'),
                     decoration: StoreFormField.decoration(
-                            hint: 'Select store')
-                        .copyWith(
+                      hint: 'Select store',
+                    ).copyWith(
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       isDense: true,
                     ),
                     borderRadius: BorderRadius.circular(12),
                     validator: (v) =>
                         v == null ? 'Please select a store' : null,
-                    items: buildStoreDropdownItems(approvedStores,
-                        kycApprovedOnly: true),
+                    items: buildStoreDropdownItems(
+                      approvedStores,
+                      kycApprovedOnly: true,
+                    ),
                     selectedItemBuilder: (context) => approvedStores
-                        .map((s) => StoreSelectDropdownTile(
-                            store: s, compact: true))
+                        .map(
+                          (s) => StoreSelectDropdownTile(
+                            store: s,
+                            compact: true,
+                          ),
+                        )
                         .toList(),
-                    onChanged: (id) =>
-                        setState(() => _selectedStoreId = id),
+                    onChanged: widget.initialStore != null
+                        ? null
+                        : (id) => setState(() => _selectedStoreId = id),
                   ),
                   const SizedBox(height: 14),
-                  // Name + Category row
-                  StoreFieldRow(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _FieldLabel(
-                            label: 'Service Name',
-                            icon: Icons.spa_outlined,
-                            required: true,
+                  StoreFormField(
+                    controller: _nameCtrl,
+                    label: 'Service Name',
+                    icon: Icons.spa_outlined,
+                    required: true,
+                    hint: 'e.g. Haircut, Facial',
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        v?.trim().isEmpty == true ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  const StoreFieldLabel(
+                    label: 'Category',
+                    icon: Icons.category_outlined,
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _category,
+                    isExpanded: true,
+                    decoration: StoreFormField.decoration(hint: 'Category'),
+                    borderRadius: BorderRadius.circular(12),
+                    items: _kCategories
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              c,
+                              style: const TextStyle(fontSize: 13),
+                            ),
                           ),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _nameCtrl,
-                            decoration: StoreFormField.decoration(
-                                hint: 'e.g. Haircut, Facial'),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? 'Required'
-                                    : null,
-                            textCapitalization:
-                                TextCapitalization.words,
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _FieldLabel(
-                            label: 'Category',
-                            icon: Icons.category_outlined,
-                          ),
-                          const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
-                            initialValue: _category,
-                            isExpanded: true,
-                            decoration: StoreFormField.decoration(
-                                hint: 'Category'),
-                            borderRadius: BorderRadius.circular(12),
-                            items: _kCategories
-                                .map((c) => DropdownMenuItem(
-                                      value: c,
-                                      child: Text(c,
-                                          style: const TextStyle(
-                                              fontSize: 13)),
-                                    ))
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) {
-                                setState(() => _category = v);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _category = v);
+                    },
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-
-            // ── Card 2: Service Media ──────────────────────────────────
-            _Card(
-              icon: Icons.photo_library_outlined,
+            const SizedBox(height: 14),
+            StoreFormSection(
               title: 'Service Media',
+              subtitle: 'Upload up to 5 photos — tap one to set cover',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -376,83 +358,49 @@ class _AddServiceScreenState extends ConsumerState<AddServiceScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.star_rounded,
-                            size: 13, color: AppColors.primary),
+                        Icon(
+                          Icons.star_rounded,
+                          size: 13,
+                          color: AppColors.primary.withValues(alpha: 0.85),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Tap image to set as cover photo',
                           style: TextStyle(
                             fontSize: 11,
-                            color:
-                                AppColors.textSecondary.withValues(alpha: 0.8),
+                            color: AppColors.textSecondary.withValues(alpha: 0.85),
                           ),
                         ),
                       ],
                     ),
                   ],
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
-                    'Supports PNG, JPG (Max 5 files)',
+                    'Supports PNG, JPG (max 5 files)',
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      color: AppColors.textSecondary.withValues(alpha: 0.75),
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-
-            // ── Card 3: Description ────────────────────────────────────
-            _Card(
-              icon: Icons.subject_rounded,
+            const SizedBox(height: 14),
+            StoreFormSection(
               title: 'Service Description',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const _FieldLabel(
-                    label: 'Description',
-                    icon: Icons.notes_rounded,
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _descCtrl,
-                    decoration: StoreFormField.decoration(
-                        hint: 'Optional service details...'),
-                    maxLines: 4,
-                    minLines: 3,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ── Submit ─────────────────────────────────────────────────
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Add Service',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700)),
+              subtitle: 'Optional details shown to customers',
+              child: StoreFormField(
+                controller: _descCtrl,
+                label: 'Description',
+                icon: Icons.notes_rounded,
+                hint: 'Optional service details...',
+                maxLines: 4,
+                minLines: 3,
               ),
             ),
           ],
@@ -462,95 +410,130 @@ class _AddServiceScreenState extends ConsumerState<AddServiceScreen> {
   }
 }
 
-// ─── Shared card wrapper ──────────────────────────────────────────────────────
+class _SelectedStoreBanner extends StatelessWidget {
+  const _SelectedStoreBanner({required this.store});
 
-class _Card extends StatelessWidget {
-  const _Card(
-      {required this.icon,
-      required this.title,
-      required this.child});
-  final IconData icon;
-  final String title;
-  final Widget child;
+  final StoreRecord store;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+            ),
+          ),
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, size: 16, color: AppColors.primary),
-              ),
+              _StoreThumb(url: store.primaryImage, name: store.businessName),
               const SizedBox(width: 10),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.2,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      store.businessName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      store.categoryLabel,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  store.kycLabel.replaceFirst('KYC ', ''),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.95),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          child,
-        ],
+        ),
       ),
     );
   }
 }
 
-// ─── Field label ──────────────────────────────────────────────────────────────
+class _StoreThumb extends StatelessWidget {
+  const _StoreThumb({required this.url, required this.name});
 
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(
-      {required this.label, required this.icon, this.required = false});
-  final String label;
-  final IconData icon;
-  final bool required;
+  final String? url;
+  final String name;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: AppColors.textSecondary),
-        const SizedBox(width: 5),
-        Text(
-          label,
+    final imageUrl = url?.trim();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: hasImage
+            ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, e, s) => _fallback())
+            : _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return ColoredBox(
+      color: Colors.white.withValues(alpha: 0.22),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'S',
           style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary),
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
         ),
-        if (required) ...[
-          const SizedBox(width: 3),
-          const Text('*',
-              style: TextStyle(
-                  color: AppColors.error, fontWeight: FontWeight.bold)),
-        ],
-      ],
+      ),
     );
   }
 }
@@ -569,26 +552,31 @@ class _MediaUploadPlaceholder extends StatelessWidget {
       onTap: () => _showPickerSheet(context),
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 28),
+        padding: const EdgeInsets.symmetric(vertical: 30),
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            style: BorderStyle.solid,
+            color: AppColors.primary.withValues(alpha: 0.2),
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(Icons.cloud_upload_outlined,
-                  size: 28, color: AppColors.primary),
+              child: const Icon(
+                Icons.cloud_upload_outlined,
+                size: 28,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 10),
             const Text(

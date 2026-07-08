@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
@@ -21,21 +23,44 @@ import '../../features/stores/screens/stores_screen.dart';
 import '../../features/shared/widgets/kyc_required_gate.dart';
 import '../../features/shared/widgets/store_required_gate.dart';
 
+/// Notifies [GoRouter] when auth changes so redirect runs without recreating the router.
+class GoRouterRefreshNotifier extends ChangeNotifier {
+  GoRouterRefreshNotifier(this._ref) {
+    _ref.listen<AsyncValue<PartnerUser?>>(
+      authStateProvider,
+      (_, next) => notifyListeners(),
+    );
+  }
+
+  final Ref _ref;
+}
+
+final goRouterRefreshProvider = Provider<GoRouterRefreshNotifier>((ref) {
+  final notifier = GoRouterRefreshNotifier(ref);
+  ref.onDispose(notifier.dispose);
+  return notifier;
+});
+
+String? _authRedirect(Ref ref, GoRouterState state) {
+  final authState = ref.read(authStateProvider);
+  if (authState.isLoading) return null;
+
+  final user = authState.valueOrNull;
+  final path = state.matchedLocation;
+  final isAuthRoute = path == '/login' || path == '/register';
+
+  if (user == null && !isAuthRoute) return '/login';
+  if (user != null && isAuthRoute) return '/home';
+  return null;
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refreshListenable = ref.watch(goRouterRefreshProvider);
 
   return GoRouter(
     initialLocation: '/home',
-    redirect: (context, state) {
-      if (authState.isLoading) return null;
-      final user = authState.valueOrNull;
-      final path = state.matchedLocation;
-      final isAuthRoute =
-          path == '/login' || path == '/register';
-      if (user == null && !isAuthRoute) return '/login';
-      if (user != null && isAuthRoute) return '/home';
-      return null;
-    },
+    refreshListenable: refreshListenable,
+    redirect: (context, state) => _authRedirect(ref, state),
     routes: [
       // Auth routes (outside shell)
       GoRoute(

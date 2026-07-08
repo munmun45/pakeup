@@ -125,6 +125,7 @@ class PartnerAccountRecord {
   const PartnerAccountRecord({
     required this.accountId,
     required this.ownerName,
+    this.profileId,
     this.phone,
     this.email,
     this.primaryImage,
@@ -144,6 +145,7 @@ class PartnerAccountRecord {
 
   final String accountId;
   final String ownerName;
+  final String? profileId;
   final String? phone;
   final String? email;
   final String? primaryImage;
@@ -161,6 +163,8 @@ class PartnerAccountRecord {
   final DateTime? accountUpdatedAt;
 
   String get shortAccountId {
+    final profile = profileId?.trim();
+    if (profile != null && profile.isNotEmpty) return profile;
     if (accountId.length <= 12) return accountId;
     return '${accountId.substring(0, 8)}…';
   }
@@ -196,6 +200,7 @@ class PartnerAccountRecord {
   factory PartnerAccountRecord.fromJson(Map<String, dynamic> json) {
     return PartnerAccountRecord(
       accountId: json['account_id'] as String? ?? '',
+      profileId: json['profile_id'] as String?,
       ownerName: json['owner_name'] as String? ?? '',
       phone: json['phone'] as String?,
       email: json['email'] as String?,

@@ -232,8 +232,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
 
       if (!mounted) return;
       if (picked != null) {
-        final docType =
-            KycDocType.values.firstWhere((t) => t.key == key);
+        final docType = KycDocType.values.firstWhere((t) => t.key == key);
         final sizeError = await KycDocumentLimits.validatePath(
           picked.path,
           docType,
@@ -303,7 +302,10 @@ class _KycScreenState extends ConsumerState<KycScreen> {
             ListTile(
               leading: const CircleAvatar(
                 backgroundColor: Color(0x1AE91E8C),
-                child: Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                child: Icon(
+                  Icons.photo_library_rounded,
+                  color: AppColors.primary,
+                ),
               ),
               title: const Text('Choose Photo'),
               onTap: () => Navigator.pop(ctx, _UploadAction.gallery),
@@ -314,7 +316,10 @@ class _KycScreenState extends ConsumerState<KycScreen> {
             ListTile(
               leading: const CircleAvatar(
                 backgroundColor: Color(0x1AFF7043),
-                child: Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE65100)),
+                child: Icon(
+                  Icons.picture_as_pdf_rounded,
+                  color: Color(0xFFE65100),
+                ),
               ),
               title: const Text('Choose File (PDF)'),
               onTap: () => Navigator.pop(ctx, _UploadAction.file),
@@ -330,7 +335,9 @@ class _KycScreenState extends ConsumerState<KycScreen> {
 
   Future<({String accountId, String loginPass})?> _credentials() async {
     final user = ref.read(authStateProvider).valueOrNull;
-    final loginPass = await ref.read(authRepositoryProvider).getStoredLoginPass();
+    final loginPass = await ref
+        .read(authRepositoryProvider)
+        .getStoredLoginPass();
     if (user == null || loginPass == null || loginPass.isEmpty) {
       if (mounted) {
         AppSnackBar.error(context, 'Session expired. Please log in again.');
@@ -490,13 +497,17 @@ class _KycScreenState extends ConsumerState<KycScreen> {
   @override
   Widget build(BuildContext context) {
     final storesAsync = ref.watch(myStoresProvider);
+    final profileId = ref.watch(authStateProvider).valueOrNull?.profileId?.trim();
 
     return storesAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      loading: () => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: _KycAppBar(title: 'KYC Verification', profileId: profileId),
+        body: const Center(child: CircularProgressIndicator()),
       ),
       error: (e, _) => Scaffold(
-        appBar: AppBar(title: const Text('KYC Verification')),
+        backgroundColor: AppColors.background,
+        appBar: _KycAppBar(title: 'KYC Verification', profileId: profileId),
         body: Center(child: Text('$e')),
       ),
       data: (stores) {
@@ -512,161 +523,153 @@ class _KycScreenState extends ConsumerState<KycScreen> {
           _syncFormFromKyc(kyc, _selectedStoreId!);
         }
         final uploadedCount = _docs.where((d) => _hasDoc(d.key, kyc)).length;
-        final requiredDone =
-            _docs.where((d) => d.required && _hasDoc(d.key, kyc)).length;
+        final requiredDone = _docs
+            .where((d) => d.required && _hasDoc(d.key, kyc))
+            .length;
         final requiredTotal = _docs.where((d) => d.required).length;
 
-        final canEditKyc = selectedStore != null &&
-            _canEditKyc(selectedStore, kyc);
+        final canEditKyc =
+            selectedStore != null && _canEditKyc(selectedStore, kyc);
         final showSubmitBar =
             !showStoreList && canEditKyc && kycAsync?.isLoading != true;
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          appBar: AppBar(
-            title: Text(showStoreList ? 'KYC Verification' : selectedStore!.businessName),
-            backgroundColor: AppColors.surface,
-            foregroundColor: AppColors.textPrimary,
-            elevation: 0,
+          appBar: _KycAppBar(
+            title: showStoreList
+                ? 'KYC Verification'
+                : selectedStore!.businessName,
+            profileId: profileId,
+            subtitle: showStoreList
+                ? 'Select a store to upload KYC'
+                : selectedStore!.categoryLabel,
             leading: !showStoreList && widget.storeId == null
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back_rounded),
                     onPressed: _backToStoreList,
                   )
                 : null,
-            bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Divider(height: 1, color: AppColors.border),
-            ),
           ),
           bottomNavigationBar: showSubmitBar
-              ? _KycSubmitBar(
-                  loading: _loading,
-                  onSubmit: () => _submit(kyc),
-                )
+              ? _KycSubmitBar(loading: _loading, onSubmit: () => _submit(kyc))
               : null,
           body: pullToRefresh(
             onRefresh: _refreshPage,
             child: showStoreList
-                ? _KycStoreList(
-                    stores: stores,
-                    onSelectStore: _onStoreChanged,
-                  )
+                ? _KycStoreList(stores: stores, onSelectStore: _onStoreChanged)
                 : SingleChildScrollView(
                     physics: alwaysScrollablePhysics,
                     padding: EdgeInsets.fromLTRB(
                       16,
-                      16,
+                      14,
                       16,
                       showSubmitBar ? 100 : 24,
                     ),
                     child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (selectedStore != null) ...[
-                        _SelectedStoreRow(store: selectedStore),
-                        const SizedBox(height: 16),
-                        _KycStatusCard(status: selectedStore.kycStatus),
-                        const SizedBox(height: 16),
-                        if (kycAsync?.isLoading == true)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else ...[
-                          KycStepSection(
-                            step: '1',
-                            title: 'Property Type',
-                            subtitle:
-                                'Select how the business premises is held',
-                            icon: Icons.home_work_outlined,
-                            required: true,
-                            child: KycPropertyTypeSelector(
-                              value: _propertyType,
-                              showError: _propertyTypeError,
-                              onChanged: canEditKyc
-                                  ? (value) => setState(() {
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (selectedStore != null) ...[
+                          _KycStoreSummaryCard(store: selectedStore),
+                          const SizedBox(height: 14),
+                          _KycStatusCard(status: selectedStore.kycStatus),
+                          const SizedBox(height: 14),
+                          if (kycAsync?.isLoading == true)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else ...[
+                            KycStepSection(
+                              step: '1',
+                              title: 'Property Type',
+                              subtitle:
+                                  'Select how the business premises is held',
+                              required: true,
+                              child: KycPropertyTypeSelector(
+                                value: _propertyType,
+                                showError: _propertyTypeError,
+                                onChanged: canEditKyc
+                                    ? (value) => setState(() {
                                         _propertyType = value;
                                         _propertyTypeError = false;
                                       })
-                                  : null,
+                                    : null,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          KycStepSection(
-                            step: '2',
-                            title: 'Identity Details',
-                            subtitle: 'PAN and Aadhaar numbers',
-                            icon: Icons.badge_outlined,
-                            child: StoreFieldRow(
-                              children: [
-                                StoreFormField(
-                                  controller: _panCtrl,
-                                  label: 'PAN Number',
-                                  icon: Icons.badge_outlined,
-                                  required: true,
-                                  hint: 'FGHIJ5678K',
-                                  readOnly: !canEditKyc,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                      RegExp(r'[A-Za-z0-9]'),
-                                    ),
-                                    LengthLimitingTextInputFormatter(10),
-                                  ],
-                                ),
-                                StoreFormField(
-                                  controller: _aadhaarCtrl,
-                                  label: 'Aadhaar Number',
-                                  icon: Icons.fingerprint,
-                                  required: true,
-                                  hint: '987654321098',
-                                  keyboardType: TextInputType.number,
-                                  readOnly: !canEditKyc,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(12),
-                                  ],
-                                ),
-                              ],
+                            const SizedBox(height: 14),
+                            KycStepSection(
+                              step: '2',
+                              title: 'Identity Details',
+                              subtitle: 'PAN and Aadhaar numbers',
+                              child: StoreFieldRow(
+                                children: [
+                                  StoreFormField(
+                                    controller: _panCtrl,
+                                    label: 'PAN Number',
+                                    icon: Icons.badge_outlined,
+                                    required: true,
+                                    hint: 'FGHIJ5678K',
+                                    readOnly: !canEditKyc,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                        RegExp(r'[A-Za-z0-9]'),
+                                      ),
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
+                                  ),
+                                  StoreFormField(
+                                    controller: _aadhaarCtrl,
+                                    label: 'Aadhaar Number',
+                                    icon: Icons.fingerprint,
+                                    required: true,
+                                    hint: '987654321098',
+                                    keyboardType: TextInputType.number,
+                                    readOnly: !canEditKyc,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(12),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          _ProgressCard(
-                            uploaded: uploadedCount,
-                            total: _docs.length,
-                            requiredDone: requiredDone,
-                            requiredTotal: requiredTotal,
-                          ),
-                          const SizedBox(height: 16),
-                          ..._docs.expand((doc) sync* {
-                            if (doc.key == 'other') {
+                            const SizedBox(height: 14),
+                            _ProgressCard(
+                              uploaded: uploadedCount,
+                              total: _docs.length,
+                              requiredDone: requiredDone,
+                              requiredTotal: requiredTotal,
+                            ),
+                            const SizedBox(height: 14),
+                            ..._docs.expand((doc) sync* {
+                              if (doc.key == 'other') {
+                                yield Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: StoreFormField(
+                                    controller: _otherDocNameCtrl,
+                                    label: 'Other Document Name',
+                                    icon: Icons.label_outline_rounded,
+                                    hint: 'e.g. Trade License, FSSAI...',
+                                    readOnly: !canEditKyc,
+                                  ),
+                                );
+                              }
                               yield Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: StoreFormField(
-                                  controller: _otherDocNameCtrl,
-                                  label: 'Other Document Name',
-                                  icon: Icons.label_outline_rounded,
-                                  hint: 'e.g. Trade License, FSSAI...',
-                                  readOnly: !canEditKyc,
-                                ),
-                              );
-                            }
-                            yield Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _DocUploadCard(
-                                doc: doc,
-                                localFile: _localFiles[doc.key],
-                                remoteUrl: _effectiveUrl(doc.key, kyc),
-                                uploaded: _hasDoc(doc.key, kyc),
-                                locked: !canEditKyc,
-                                documentName: doc.key == 'other'
-                                    ? _otherDocNameCtrl.text.trim()
-                                    : null,
-                                onTap: canEditKyc
-                                    ? () => _pickDocument(doc.key)
-                                    : null,
-                                onRemove: canEditKyc
-                                    ? () => setState(() {
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _DocUploadCard(
+                                  doc: doc,
+                                  localFile: _localFiles[doc.key],
+                                  remoteUrl: _effectiveUrl(doc.key, kyc),
+                                  uploaded: _hasDoc(doc.key, kyc),
+                                  locked: !canEditKyc,
+                                  documentName: doc.key == 'other'
+                                      ? _otherDocNameCtrl.text.trim()
+                                      : null,
+                                  onTap: canEditKyc
+                                      ? () => _pickDocument(doc.key)
+                                      : null,
+                                  onRemove: canEditKyc
+                                      ? () => setState(() {
                                           _localFiles[doc.key] = null;
                                           if (kyc?.hasDoc(doc.key) == true) {
                                             _clearedServerDocs.add(doc.key);
@@ -675,15 +678,15 @@ class _KycScreenState extends ConsumerState<KycScreen> {
                                             _otherDocNameCtrl.clear();
                                           }
                                         })
-                                    : null,
-                              ),
-                            );
-                          }),
+                                      : null,
+                                ),
+                              );
+                            }),
+                          ],
                         ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
           ),
         );
       },
@@ -691,11 +694,93 @@ class _KycScreenState extends ConsumerState<KycScreen> {
   }
 }
 
-class _KycStoreList extends StatelessWidget {
-  const _KycStoreList({
-    required this.stores,
-    required this.onSelectStore,
+class _KycAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _KycAppBar({
+    required this.title,
+    this.profileId,
+    this.subtitle,
+    this.leading,
   });
+
+  final String title;
+  final String? profileId;
+  final String? subtitle;
+  final Widget? leading;
+
+  @override
+  Size get preferredSize {
+    final hasSubtitle = subtitle?.trim().isNotEmpty == true;
+    final hasId = profileId?.trim().isNotEmpty == true;
+    if (hasSubtitle || hasId) return const Size.fromHeight(56);
+    return const Size.fromHeight(kToolbarHeight);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = profileId?.trim();
+    final sub = subtitle?.trim();
+
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Colors.white,
+      toolbarHeight: preferredSize.height,
+      leading: leading,
+      automaticallyImplyLeading: leading == null,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.secondary],
+          ),
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+          if (sub != null && sub.isNotEmpty)
+            Text(
+              sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          else if (id != null && id.isNotEmpty)
+            Text(
+              'Profile ID: $id',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KycStoreList extends StatelessWidget {
+  const _KycStoreList({required this.stores, required this.onSelectStore});
 
   final List<StoreRecord> stores;
   final ValueChanged<String> onSelectStore;
@@ -713,22 +798,25 @@ class _KycStoreList extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-              Icon(
-                Icons.storefront_outlined,
-                size: 72,
-                color: AppColors.textSecondary.withValues(alpha: 0.3),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No stores yet',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Add a store first, then upload KYC documents.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, height: 1.4),
-              ),
+                  Icon(
+                    Icons.storefront_outlined,
+                    size: 72,
+                    color: AppColors.textSecondary.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No stores yet',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add a store first, then upload KYC documents.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -739,20 +827,11 @@ class _KycStoreList extends StatelessWidget {
 
     return ListView(
       physics: alwaysScrollablePhysics,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: [
-        const Text(
-          'Select a store to upload KYC',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 12),
         ...stores.map(
           (store) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 14),
             child: _KycStorePickerCard(
               store: store,
               onTap: () => onSelectStore(store.id),
@@ -765,69 +844,57 @@ class _KycStoreList extends StatelessWidget {
 }
 
 class _KycStorePickerCard extends ConsumerWidget {
-  const _KycStorePickerCard({
-    required this.store,
-    required this.onTap,
-  });
+  const _KycStorePickerCard({required this.store, required this.onTap});
 
   final StoreRecord store;
   final VoidCallback onTap;
-
-  Color get _kycColor => switch (store.kycStatus) {
-        'approved' => AppColors.success,
-        'rejected' => AppColors.error,
-        _ => AppColors.warning,
-      };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kycAsync = ref.watch(storeKycProvider(store.id));
     final kyc = kycAsync.valueOrNull;
-    final uploaded =
-        kKycDocuments.where((d) => kyc?.hasDoc(d.key) ?? false).length;
+    final uploaded = kKycDocuments
+        .where((d) => kyc?.hasDoc(d.key) ?? false)
+        .length;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 20,
+            offset: const Offset(0, 7),
           ),
+        ],
+      ),
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 11, 8, 11),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+                  ),
+                ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor:
-                          AppColors.primary.withValues(alpha: 0.12),
-                      child: Text(
-                        store.businessName.isNotEmpty
-                            ? store.businessName[0].toUpperCase()
-                            : 'S',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                    _KycStoreAvatar(name: store.businessName),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -837,86 +904,96 @@ class _KycStorePickerCard extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
+                              color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 15,
+                              fontSize: 16,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            store.ownerName,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
+                            store.categoryLabel,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                size: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 3),
-                              Expanded(
-                                child: Text(
-                                  store.locationLabel,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 5),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _kycColor.withValues(alpha: 0.12),
+                        color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _kycColor.withValues(alpha: 0.2),
-                        ),
                       ),
                       child: Text(
-                        store.kycLabel,
+                        store.kycLabel.replaceFirst('KYC ', ''),
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: _kycColor,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.95),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ],
                 ),
               ),
-              if (!kycAsync.isLoading)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                  child: _KycIdentitySummary(
-                    propertyType: kyc?.propertyType,
-                    panNumber: kyc?.panNumber,
-                    aadhaarNumber: kyc?.aadhaarNumber,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            store.addressLabel,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.textSecondary,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!kycAsync.isLoading) ...[
+                      const SizedBox(height: 10),
+                      _KycIdentitySummary(
+                        propertyType: kyc?.propertyType,
+                        panNumber: kyc?.panNumber,
+                        aadhaarNumber: kyc?.aadhaarNumber,
+                      ),
+                    ],
+                  ],
                 ),
+              ),
               Container(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFAF8F9),
+                  color: AppColors.background.withValues(alpha: 0.85),
                   border: Border(
                     top: BorderSide(
-                      color: AppColors.border.withValues(alpha: 0.85),
+                      color: AppColors.border.withValues(alpha: 0.7),
                     ),
-                  ),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(18),
                   ),
                 ),
                 child: kycAsync.isLoading
@@ -953,11 +1030,11 @@ class _KycIdentitySummary extends StatelessWidget {
   final String? aadhaarNumber;
 
   String _propertyLabel(String? value) => switch (value?.toLowerCase()) {
-        'own' => 'Own',
-        'lease' => 'Lease',
-        'rent' => 'Rent',
-        _ => 'Not set',
-      };
+    'own' => 'Own',
+    'lease' => 'Lease',
+    'rent' => 'Rent',
+    _ => 'Not set',
+  };
 
   String _textOrUnset(String? value) {
     final trimmed = value?.trim();
@@ -1087,10 +1164,7 @@ class _KycDocChipRow extends StatelessWidget {
           runSpacing: 6,
           children: kKycDocuments.map((doc) {
             final done = kyc?.hasDoc(doc.key) ?? false;
-            return _KycDocChip(
-              label: doc.shortLabel,
-              done: done,
-            );
+            return _KycDocChip(label: doc.shortLabel, done: done);
           }).toList(),
         ),
       ],
@@ -1144,20 +1218,24 @@ class _KycDocChip extends StatelessWidget {
 }
 
 class _KycSubmitBar extends StatelessWidget {
-  const _KycSubmitBar({
-    required this.loading,
-    required this.onSubmit,
-  });
+  const _KycSubmitBar({required this.loading, required this.onSubmit});
 
   final bool loading;
   final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      elevation: 8,
-      shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -1165,31 +1243,53 @@ class _KycSubmitBar extends StatelessWidget {
           child: SizedBox(
             height: 52,
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: loading ? null : onSubmit,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [AppColors.primary, AppColors.secondary],
                 ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              child: loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+              child: ElevatedButton(
+                onPressed: loading ? null : onSubmit,
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.transparent,
+                  disabledForegroundColor: Colors.white70,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Submit KYC Documents',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
                       ),
-                    )
-                  : const Text(
-                      'Submit KYC Documents',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
+              ),
             ),
           ),
         ),
@@ -1198,98 +1298,136 @@ class _KycSubmitBar extends StatelessWidget {
   }
 }
 
-class _SelectedStoreRow extends StatelessWidget {
-  const _SelectedStoreRow({required this.store});
+class _KycStoreSummaryCard extends StatelessWidget {
+  const _KycStoreSummaryCard({required this.store});
 
   final StoreRecord store;
-
-  Color get _kycColor => switch (store.kycStatus) {
-        'approved' => AppColors.success,
-        'rejected' => AppColors.error,
-        _ => AppColors.warning,
-      };
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-            child: Text(
-              store.businessName.isNotEmpty
-                  ? store.businessName[0].toUpperCase()
-                  : 'S',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  store.businessName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        store.locationLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: _kycColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              store.kycLabel,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: _kycColor,
-              ),
-            ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
+      ),
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  _KycStoreAvatar(name: store.businessName),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          store.businessName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          store.categoryLabel,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      store.kycLabel.replaceFirst('KYC ', ''),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withValues(alpha: 0.95),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Text(
+                store.addressLabel,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KycStoreAvatar extends StatelessWidget {
+  const _KycStoreAvatar({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'S',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 18,
+        ),
       ),
     );
   }
@@ -1320,23 +1458,23 @@ class _KycStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (color, icon, title, body) = switch (status) {
       'approved' => (
-          AppColors.success,
-          Icons.verified_rounded,
-          'KYC Approved',
-          'This store\'s KYC documents are verified.',
-        ),
+        AppColors.success,
+        Icons.verified_rounded,
+        'KYC Approved',
+        'This store\'s KYC documents are verified.',
+      ),
       'rejected' => (
-          AppColors.error,
-          Icons.cancel_rounded,
-          'KYC Rejected',
-          'Documents were rejected. Please re-upload correct documents.',
-        ),
+        AppColors.error,
+        Icons.cancel_rounded,
+        'KYC Rejected',
+        'Documents were rejected. Please re-upload correct documents.',
+      ),
       _ => (
-          AppColors.warning,
-          Icons.pending_rounded,
-          'KYC Pending',
-          'Documents are under review for this store.',
-        ),
+        AppColors.warning,
+        Icons.pending_rounded,
+        'KYC Pending',
+        'Documents are under review for this store.',
+      ),
     };
 
     return Container(
@@ -1390,51 +1528,73 @@ class _ProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = total > 0 ? uploaded / total : 0.0;
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Upload Progress',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Upload Progress',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                  Text(
+                    '$uploaded / $total',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: AppColors.border,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Text(
-                '$uploaded / $total',
+                'Required: $requiredDone / $requiredTotal uploaded',
                 style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: AppColors.border,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Required: $requiredDone / $requiredTotal uploaded',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1473,9 +1633,7 @@ class _DocUploadCard extends StatelessWidget {
 
   String get _statusText {
     if (!uploaded) {
-      return locked
-          ? 'Not uploaded'
-          : 'Tap to upload photo or PDF';
+      return locked ? 'Not uploaded' : 'Tap to upload photo or PDF';
     }
     if (localFile != null) {
       final customName = documentName?.trim();
@@ -1493,16 +1651,30 @@ class _DocUploadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: uploaded
-              ? AppColors.success.withValues(alpha: 0.4)
-              : AppColors.border,
-          width: uploaded ? 1.5 : 1,
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: ListTile(
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: uploaded
+                ? AppColors.success.withValues(alpha: 0.45)
+                : Colors.white,
+            width: uploaded ? 1.5 : 1.5,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
         contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
         leading: Container(
           padding: const EdgeInsets.all(10),
@@ -1571,22 +1743,26 @@ class _DocUploadCard extends StatelessWidget {
         ),
         trailing: locked
             ? (uploaded
-                ? const Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.success,
-                    size: 22,
-                  )
-                : null)
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.success,
+                      size: 22,
+                    )
+                  : null)
             : uploaded
-                ? IconButton(
-                    icon: const Icon(Icons.close_rounded, color: AppColors.error),
-                    onPressed: onRemove,
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.upload_rounded, color: AppColors.primary),
-                    onPressed: onTap,
-                  ),
+            ? IconButton(
+                icon: const Icon(Icons.close_rounded, color: AppColors.error),
+                onPressed: onRemove,
+              )
+            : IconButton(
+                icon: const Icon(
+                  Icons.upload_rounded,
+                  color: AppColors.primary,
+                ),
+                onPressed: onTap,
+              ),
         onTap: locked ? null : onTap,
+        ),
       ),
     );
   }

@@ -49,60 +49,67 @@ class StoreFormSection extends StatelessWidget {
   const StoreFormSection({
     super.key,
     required this.title,
-    required this.icon,
+    this.subtitle,
     required this.child,
   });
 
   final String title;
-  final IconData icon;
+  final String? subtitle;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.9)),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(9),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                  letterSpacing: -0.2,
                 ),
-                child: Icon(icon, size: 17, color: AppColors.primary),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
+              if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
                   style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.2,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
                   ),
                 ),
-              ),
+              ],
+              const SizedBox(height: 14),
+              child,
             ],
           ),
-          const SizedBox(height: 16),
-          child,
-        ],
+        ),
       ),
     );
   }
@@ -166,6 +173,8 @@ class StoreFormField extends StatelessWidget {
     this.hint,
     this.readOnly = false,
     this.compact = false,
+    this.obscureText = false,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final TextEditingController controller;
@@ -181,6 +190,8 @@ class StoreFormField extends StatelessWidget {
   final String? hint;
   final bool readOnly;
   final bool compact;
+  final bool obscureText;
+  final TextCapitalization textCapitalization;
 
   static InputDecoration decoration({
     String? hint,
@@ -194,7 +205,9 @@ class StoreFormField extends StatelessWidget {
         fontSize: compact ? 12 : 14,
       ),
       filled: true,
-      fillColor: readOnly ? AppColors.background : AppColors.surface,
+      fillColor: readOnly
+          ? AppColors.background
+          : AppColors.primary.withValues(alpha: 0.03),
       contentPadding: EdgeInsets.symmetric(
         horizontal: compact ? 10 : 14,
         vertical: compact ? 10 : 14,
@@ -239,11 +252,13 @@ class StoreFormField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           textInputAction: textInputAction,
+          textCapitalization: textCapitalization,
           inputFormatters: inputFormatters,
           validator: validator,
           maxLines: maxLines,
           minLines: minLines,
           readOnly: readOnly,
+          obscureText: obscureText,
           style: TextStyle(
             fontSize: compact ? 13 : 15,
             fontWeight: FontWeight.w500,

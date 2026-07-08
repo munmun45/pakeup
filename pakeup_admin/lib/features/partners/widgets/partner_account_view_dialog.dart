@@ -104,7 +104,7 @@ class PartnerAccountViewDialog extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Account ID: ${account.accountId}',
+                              'Profile ID: ${account.profileId ?? account.shortAccountId}',
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 color: AppColors.textSecondary,

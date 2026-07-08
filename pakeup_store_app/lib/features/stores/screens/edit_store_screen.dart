@@ -179,21 +179,23 @@ class _EditStoreScreenState extends ConsumerState<EditStoreScreen>
     final storeAsync = ref.watch(storeDetailProvider(widget.storeId));
     final categoriesAsync = ref.watch(partnerCategoriesProvider);
     final mapsKey = Env.googleMapsApiKey;
+    final profileId = ref.watch(authStateProvider).valueOrNull?.profileId?.trim();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: const Text('Edit Store'),
-        centerTitle: true,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-      ),
-      bottomNavigationBar: Material(
-        elevation: 8,
-        color: AppColors.surface,
+      appBar: _EditStoreAppBar(profileId: profileId),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
         child: SafeArea(
           top: false,
           child: Padding(
@@ -201,32 +203,53 @@ class _EditStoreScreenState extends ConsumerState<EditStoreScreen>
             child: SizedBox(
               height: 52,
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [AppColors.primary, AppColors.secondary],
                   ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: _loading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.transparent,
+                    disabledForegroundColor: Colors.white70,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
+                ),
               ),
             ),
           ),
@@ -234,196 +257,403 @@ class _EditStoreScreenState extends ConsumerState<EditStoreScreen>
       ),
       body: storeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+                const SizedBox(height: 12),
+                Text('$e', textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () =>
+                      ref.invalidate(storeDetailProvider(widget.storeId)),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (store) {
           _prefill(store);
           return SingleChildScrollView(
             controller: _scrollCtrl,
             physics: const ClampingScrollPhysics(),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                        StoreFormSection(
-                          title: 'Store Information',
-                          icon: Icons.storefront_outlined,
-                          child: Column(
-                            children: [
-                              StoreFormField(
-                                controller: _businessNameCtrl,
-                                label: 'Store / Business Name',
-                                icon: Icons.store_outlined,
-                                required: true,
-                                textInputAction: TextInputAction.next,
-                                validator: (v) =>
-                                    v?.trim().isEmpty == true ? 'Required' : null,
-                              ),
-                              const SizedBox(height: 14),
-                              StoreFieldRow(
-                                children: [
-                                  StoreFormField(
-                                    controller: _phoneCtrl,
-                                    label: 'Phone',
-                                    icon: Icons.phone_outlined,
-                                    required: true,
-                                    hint: '10 digits',
-                                    keyboardType: TextInputType.phone,
-                                    textInputAction: TextInputAction.next,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(10),
-                                    ],
-                                    validator: _phoneValidator,
-                                  ),
-                                  StoreFormField(
-                                    controller: _whatsappCtrl,
-                                    label: 'WhatsApp',
-                                    icon: Icons.chat_outlined,
-                                    required: true,
-                                    hint: '10 digits',
-                                    keyboardType: TextInputType.phone,
-                                    textInputAction: TextInputAction.next,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(10),
-                                    ],
-                                    validator: _phoneValidator,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              categoriesAsync.when(
-                                loading: () => const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8),
-                                  child: LinearProgressIndicator(),
-                                ),
-                                error: (error, _) => StoreCategoryDropdown(
-                                  value: _category,
-                                  items: const [('salon', 'Salon')],
-                                  onChanged: (v) =>
-                                      setState(() => _category = v ?? 'salon'),
-                                ),
-                                data: (items) => StoreCategoryDropdown(
-                                  value: items.any((c) => c.slug == _category)
-                                      ? _category
-                                      : items.first.slug,
-                                  items: items
-                                      .map((c) => (c.slug, c.name))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _category = v ?? 'salon'),
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              StoreFormField(
-                                controller: _descriptionCtrl,
-                                label: 'Description',
-                                icon: Icons.description_outlined,
-                                maxLines: 4,
-                                minLines: 3,
-                                hint: 'About this store, services, specialties...',
-                                textInputAction: TextInputAction.newline,
-                              ),
-                            ],
+                  _EditStoreSummaryCard(store: store),
+                  const SizedBox(height: 14),
+                  StoreFormSection(
+                    title: 'Store Contact Details',
+                    subtitle: 'Phone and WhatsApp for this store',
+                    child: StoreFieldRow(
+                      children: [
+                        StoreFormField(
+                          controller: _phoneCtrl,
+                          label: 'Phone',
+                          icon: Icons.phone_outlined,
+                          required: true,
+                          hint: '10 digits',
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
+                          validator: _phoneValidator,
+                        ),
+                        StoreFormField(
+                          controller: _whatsappCtrl,
+                          label: 'WhatsApp',
+                          icon: Icons.chat_outlined,
+                          required: true,
+                          hint: '10 digits',
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
+                          validator: _phoneValidator,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  StoreFormSection(
+                    title: 'Store Information',
+                    subtitle: 'Business name, category, and description',
+                    child: Column(
+                      children: [
+                        StoreFormField(
+                          controller: _businessNameCtrl,
+                          label: 'Store / Business Name',
+                          icon: Icons.store_outlined,
+                          required: true,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) =>
+                              v?.trim().isEmpty == true ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 14),
+                        categoriesAsync.when(
+                          loading: () => const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: LinearProgressIndicator(),
+                          ),
+                          error: (error, _) => StoreCategoryDropdown(
+                            value: _category,
+                            items: const [('salon', 'Salon')],
+                            onChanged: (v) =>
+                                setState(() => _category = v ?? 'salon'),
+                          ),
+                          data: (items) => StoreCategoryDropdown(
+                            value: items.any((c) => c.slug == _category)
+                                ? _category
+                                : items.first.slug,
+                            items: items
+                                .map((c) => (c.slug, c.name))
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _category = v ?? 'salon'),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        StoreFormSection(
-                          title: 'Location & Map',
-                          icon: Icons.location_on_outlined,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (mapsKey == null)
-                                Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        AppColors.warning.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: AppColors.warning
-                                          .withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Add GOOGLE_MAPS_API_KEY to pakeup_store_app/.env '
-                                    'to enable map search and location picker.',
-                                    style: TextStyle(fontSize: 12.5),
-                                  ),
-                                )
-                              else
-                                StoreLocationPicker(
-                                  apiKey: mapsKey,
-                                  latitude: _latitude,
-                                  longitude: _longitude,
-                                  initialAddress: _addressCtrl.text,
-                                  city: _cityCtrl.text,
-                                  state: _stateCtrl.text,
-                                  onLocationChanged: _onLocationChanged,
-                                ),
-                              const SizedBox(height: 14),
-                              StoreFormField(
-                                controller: _addressCtrl,
-                                label: 'Full Address',
-                                icon: Icons.home_outlined,
-                                maxLines: 2,
-                                minLines: 1,
-                                textInputAction: TextInputAction.next,
-                              ),
-                              const SizedBox(height: 14),
-                              StoreFieldRow(
-                                breakpoint: 280,
-                                spacing: 8,
-                                children: [
-                                  StoreFormField(
-                                    controller: _cityCtrl,
-                                    label: 'City',
-                                    icon: Icons.location_city_outlined,
-                                    compact: true,
-                                    textInputAction: TextInputAction.next,
-                                  ),
-                                  StoreFormField(
-                                    controller: _stateCtrl,
-                                    label: 'State',
-                                    icon: Icons.map_outlined,
-                                    compact: true,
-                                    textInputAction: TextInputAction.next,
-                                  ),
-                                  StoreFormField(
-                                    controller: _pincodeCtrl,
-                                    label: 'Pincode',
-                                    icon: Icons.pin_drop_outlined,
-                                    compact: true,
-                                    keyboardType: TextInputType.number,
-                                    textInputAction: TextInputAction.done,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(6),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 14),
+                        StoreFormField(
+                          controller: _descriptionCtrl,
+                          label: 'Description',
+                          icon: Icons.description_outlined,
+                          maxLines: 4,
+                          minLines: 3,
+                          hint: 'About this store, services, specialties...',
+                          textInputAction: TextInputAction.newline,
                         ),
-                        const SizedBox(height: 12),
-                        StoreFormSection(
-                          title: 'Opening Hours',
-                          icon: Icons.access_time_rounded,
-                          child: StoreOpenHoursSection(
-                            schedules: _schedules,
-                            onChanged: (v) => setState(() => _schedules = v),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  StoreFormSection(
+                    title: 'Location & Map',
+                    subtitle: 'Pin your store on the map and enter address',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (mapsKey == null)
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.warning.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: const Text(
+                              'Add GOOGLE_MAPS_API_KEY to pakeup_store_app/.env '
+                              'to enable map search and location picker.',
+                              style: TextStyle(fontSize: 12.5),
+                            ),
+                          )
+                        else
+                          StoreLocationPicker(
+                            apiKey: mapsKey,
+                            latitude: _latitude,
+                            longitude: _longitude,
+                            initialAddress: _addressCtrl.text,
+                            city: _cityCtrl.text,
+                            state: _stateCtrl.text,
+                            onLocationChanged: _onLocationChanged,
                           ),
+                        const SizedBox(height: 14),
+                        StoreFormField(
+                          controller: _addressCtrl,
+                          label: 'Full Address',
+                          icon: Icons.home_outlined,
+                          maxLines: 2,
+                          minLines: 1,
+                          textInputAction: TextInputAction.next,
                         ),
+                        const SizedBox(height: 14),
+                        StoreFieldRow(
+                          breakpoint: 280,
+                          spacing: 8,
+                          children: [
+                            StoreFormField(
+                              controller: _cityCtrl,
+                              label: 'City',
+                              icon: Icons.location_city_outlined,
+                              compact: true,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            StoreFormField(
+                              controller: _stateCtrl,
+                              label: 'State',
+                              icon: Icons.map_outlined,
+                              compact: true,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            StoreFormField(
+                              controller: _pincodeCtrl,
+                              label: 'Pincode',
+                              icon: Icons.pin_drop_outlined,
+                              compact: true,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.done,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  StoreFormSection(
+                    title: 'Opening Hours',
+                    subtitle: 'When customers can visit or book',
+                    child: StoreOpenHoursSection(
+                      schedules: _schedules,
+                      onChanged: (v) => setState(() => _schedules = v),
+                    ),
+                  ),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _EditStoreAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _EditStoreAppBar({this.profileId});
+
+  final String? profileId;
+
+  @override
+  Size get preferredSize {
+    final hasId = profileId?.trim().isNotEmpty == true;
+    return Size.fromHeight(hasId ? 56 : kToolbarHeight);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = profileId?.trim();
+
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Colors.white,
+      toolbarHeight: preferredSize.height,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.secondary],
+          ),
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Edit Store',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+          if (id != null && id.isNotEmpty)
+            Text(
+              'Profile ID: $id',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditStoreSummaryCard extends StatelessWidget {
+  const _EditStoreSummaryCard({required this.store});
+
+  final StoreRecord store;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = store.primaryImage ??
+        (store.images.isNotEmpty ? store.images.first : null);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: imageUrl != null && imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              width: 50,
+                              height: 50,
+                              errorBuilder: (_, e, s) => _fallback(),
+                            )
+                          : _fallback(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          store.businessName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          store.categoryLabel,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Text(
+                store.addressLabel,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return ColoredBox(
+      color: Colors.white.withValues(alpha: 0.22),
+      child: Center(
+        child: Text(
+          store.businessName.isNotEmpty
+              ? store.businessName[0].toUpperCase()
+              : 'S',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,18 +10,26 @@ class StoresRepository {
   StoresRepository(this._client);
 
   final SupabaseClient _client;
+  static const _rpcTimeout = Duration(seconds: 20);
 
   Future<List<StoreRecord>> getMyStores({
     required String accountId,
     required String loginPass,
   }) async {
-    final result = await _client.rpc<dynamic>(
-      'list_partner_stores',
-      params: {
-        'p_account_id': accountId,
-        'p_login_pass': loginPass,
-      },
-    );
+    final dynamic result;
+    try {
+      result = await _client
+          .rpc<dynamic>(
+            'list_partner_stores',
+            params: {
+              'p_account_id': accountId,
+              'p_login_pass': loginPass,
+            },
+          )
+          .timeout(_rpcTimeout);
+    } on TimeoutException {
+      throw StateError('Request timed out. Please check internet and retry.');
+    }
 
     if (result == null) return const [];
 
@@ -34,14 +43,21 @@ class StoresRepository {
     required String loginPass,
     required String storeId,
   }) async {
-    final result = await _client.rpc<dynamic>(
-      'get_partner_store',
-      params: {
-        'p_account_id': accountId,
-        'p_login_pass': loginPass,
-        'p_store_id': storeId,
-      },
-    );
+    final dynamic result;
+    try {
+      result = await _client
+          .rpc<dynamic>(
+            'get_partner_store',
+            params: {
+              'p_account_id': accountId,
+              'p_login_pass': loginPass,
+              'p_store_id': storeId,
+            },
+          )
+          .timeout(_rpcTimeout);
+    } on TimeoutException {
+      throw StateError('Request timed out. Please check internet and retry.');
+    }
 
     return StoreRecord.fromJson(Map<String, dynamic>.from(result as Map));
   }

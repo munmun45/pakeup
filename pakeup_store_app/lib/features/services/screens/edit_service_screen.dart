@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/providers/supabase_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../bank/widgets/bank_shared_widgets.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import '../../stores/models/store_models.dart';
 import '../../stores/widgets/store_form_fields.dart';
@@ -187,71 +188,89 @@ class _EditServiceScreenState extends ConsumerState<EditServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final profileId =
+        ref.watch(authStateProvider).valueOrNull?.profileId?.trim();
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Edit Service'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
+      resizeToAvoidBottomInset: true,
+      appBar: BankPageAppBar(
+        title: 'Edit Service',
+        profileId: profileId,
+        subtitle: widget.store.businessName,
+      ),
+      bottomNavigationBar: BankGradientButtonBar(
+        label: 'Save Changes',
+        icon: Icons.save_rounded,
+        loading: _submitting,
+        onPressed: _submit,
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 108),
           children: [
-            _sectionCard(
-              icon: Icons.edit_note_rounded,
+            _EditStoreBanner(store: widget.store, service: widget.service),
+            const SizedBox(height: 14),
+            StoreFormSection(
               title: 'Service Details',
+              subtitle: 'Name, category and description',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
+                  StoreFormField(
                     controller: _nameCtrl,
-                    decoration:
-                        StoreFormField.decoration(hint: 'Service name *'),
+                    label: 'Service Name',
+                    icon: Icons.spa_outlined,
+                    required: true,
+                    textCapitalization: TextCapitalization.words,
                     validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Required' : null,
+                        v?.trim().isEmpty == true ? 'Required' : null,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+                  const StoreFieldLabel(
+                    label: 'Category',
+                    icon: Icons.category_outlined,
+                  ),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _category,
-                    decoration:
-                        StoreFormField.decoration(hint: 'Category'),
+                    decoration: StoreFormField.decoration(hint: 'Category'),
+                    borderRadius: BorderRadius.circular(12),
                     items: _kCategories
-                        .map((c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c, style: const TextStyle(fontSize: 13)),
-                            ))
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c, style: const TextStyle(fontSize: 13)),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setState(() => _category = v);
                     },
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
+                  const SizedBox(height: 14),
+                  StoreFormField(
                     controller: _descCtrl,
-                    decoration: StoreFormField.decoration(
-                        hint: 'Optional description...'),
+                    label: 'Description',
+                    icon: Icons.notes_rounded,
+                    hint: 'Optional description...',
                     maxLines: 4,
                     minLines: 3,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            _sectionCard(
-              icon: Icons.photo_library_outlined,
+            const SizedBox(height: 14),
+            StoreFormSection(
               title: 'Service Media',
+              subtitle: 'Upload up to 5 photos — tap one to set cover',
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_totalImages == 0)
-                    OutlinedButton.icon(
-                      onPressed: () => _showPicker(context),
-                      icon: const Icon(Icons.add_photo_alternate_outlined),
-                      label: const Text('Add Photos'),
-                    )
-                  else
+                    _EditMediaPlaceholder(onPick: () => _showPicker(context))
+                  else ...[
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -266,29 +285,8 @@ class _EditServiceScreenState extends ConsumerState<EditServiceScreen> {
                           _totalImages < 5 ? _totalImages + 1 : _totalImages,
                       itemBuilder: (context, index) {
                         if (index == _totalImages) {
-                          return InkWell(
-                            onTap: () => _showPicker(context),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: AppColors.primary
-                                      .withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_rounded,
-                                      color: AppColors.primary),
-                                  Text('Add Photo',
-                                      style: TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 12)),
-                                ],
-                              ),
-                            ),
+                          return _EditAddMoreTile(
+                            onPick: () => _showPicker(context),
                           );
                         }
                         final isPrimary = index == _primaryIndex;
@@ -316,16 +314,21 @@ class _EditServiceScreenState extends ConsumerState<EditServiceScreen> {
                                   left: 6,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 7, vertical: 3),
+                                      horizontal: 7,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: AppColors.primary,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
-                                    child: const Text('Cover',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700)),
+                                    child: const Text(
+                                      'Cover',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               Positioned(
@@ -339,8 +342,11 @@ class _EditServiceScreenState extends ConsumerState<EditServiceScreen> {
                                       color: Colors.black54,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.close_rounded,
-                                        color: Colors.white, size: 13),
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      color: Colors.white,
+                                      size: 13,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -349,24 +355,17 @@ class _EditServiceScreenState extends ConsumerState<EditServiceScreen> {
                         );
                       },
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap image to set as cover photo',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
                 ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Save Changes',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -409,41 +408,224 @@ class _EditServiceScreenState extends ConsumerState<EditServiceScreen> {
       ),
     );
   }
+}
 
-  Widget _sectionCard({
-    required IconData icon,
-    required String title,
-    required Widget child,
-  }) {
+class _EditStoreBanner extends StatelessWidget {
+  const _EditStoreBanner({required this.store, required this.service});
+
+  final StoreRecord store;
+  final ServiceRecord service;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+            ),
+          ),
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 18, color: AppColors.primary),
-              ),
+              _EditStoreThumb(url: store.primaryImage, name: store.businessName),
               const SizedBox(width: 10),
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 15)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      service.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${store.businessName} · ${store.categoryLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  service.isActive ? 'Active' : 'Inactive',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.95),
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 14),
-          child,
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditStoreThumb extends StatelessWidget {
+  const _EditStoreThumb({required this.url, required this.name});
+
+  final String? url;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = url?.trim();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: hasImage
+            ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, e, s) => _fallback())
+            : _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return ColoredBox(
+      color: Colors.white.withValues(alpha: 0.22),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'S',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditMediaPlaceholder extends StatelessWidget {
+  const _EditMediaPlaceholder({required this.onPick});
+
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 30),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 28,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Add Service Photos',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap to take or choose photos',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary.withValues(alpha: 0.85),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditAddMoreTile extends StatelessWidget {
+  const _EditAddMoreTile({required this.onPick});
+
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_rounded, color: AppColors.primary, size: 28),
+            SizedBox(height: 6),
+            Text(
+              'Add Photo',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

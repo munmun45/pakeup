@@ -21,7 +21,13 @@ class AuthNotifier extends AsyncNotifier<PartnerUser?> {
   @override
   Future<PartnerUser?> build() async {
     _repository = ref.read(authRepositoryProvider);
-    return _repository.getCurrentUser();
+    final cached = await _repository.getCurrentUser();
+    if (cached != null &&
+        (cached.profileId == null || cached.profileId!.trim().isEmpty)) {
+      final refreshed = await _repository.refreshSession();
+      return refreshed ?? cached;
+    }
+    return cached;
   }
 
   Future<void> login(String phone, String password) async {
@@ -41,8 +47,11 @@ class AuthNotifier extends AsyncNotifier<PartnerUser?> {
   }
 
   Future<void> logout() async {
-    await _repository.logout();
-    state = const AsyncData(null);
+    try {
+      await _repository.logout();
+    } finally {
+      state = const AsyncData(null);
+    }
   }
 
   Future<void> refreshSession() async {

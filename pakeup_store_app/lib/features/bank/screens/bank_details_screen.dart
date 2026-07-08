@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../shared/widgets/page_scaffold.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../kyc/widgets/kyc_form_sections.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import '../../stores/providers/stores_provider.dart';
+import '../../stores/widgets/store_form_fields.dart';
 import '../widgets/bank_shared_widgets.dart';
 
 class BankDetailsScreen extends ConsumerStatefulWidget {
@@ -135,196 +135,192 @@ class _BankDetailsScreenState extends ConsumerState<BankDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).valueOrNull;
+    final profileId = user?.profileId?.trim();
     final status = bankStatusInfo(_accountStatus);
+    final title = _hasExistingData ? 'Edit Bank Account' : 'Add Bank Account';
 
-    return PageScaffold(
-      title: _hasExistingData ? 'Edit Bank Account' : 'Add Bank Account',
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: BankPageAppBar(
+        title: title,
+        profileId: profileId,
+        subtitle: 'Enter settlement account details',
+      ),
       bottomNavigationBar: _loadingData
           ? null
-          : _BankSubmitBar(
+          : BankGradientButtonBar(
+              label: _hasExistingData
+                  ? 'Update Bank Account'
+                  : 'Save Bank Account',
+              icon: _hasExistingData ? Icons.save_rounded : Icons.check_rounded,
               loading: _loading,
-              isUpdate: _hasExistingData,
-              onSubmit: _submit,
+              onPressed: _submit,
             ),
       body: _loadingData
           ? const Center(child: CircularProgressIndicator())
-          : ColoredBox(
-              color: AppColors.background.withValues(alpha: 0.55),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 108),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      BankInfoCard(
-                        ownerName: user?.ownerName,
-                        shortAccountId:
-                            user != null ? shortPartnerId(user.id) : null,
-                        statusLabel: status.label,
-                        statusColor: status.color,
-                      ),
-                      const SizedBox(height: 12),
-                      KycStepSection(
-                        step: '1',
-                        title: 'Bank Account',
-                        subtitle: 'Account holder and bank details',
-                        icon: Icons.account_balance_rounded,
-                        required: true,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            TextFormField(
-                              controller: _accountNameCtrl,
-                              textCapitalization: TextCapitalization.words,
-                              decoration: const InputDecoration(
-                                labelText: 'Account Holder Name',
-                                prefixIcon: Icon(Icons.person_rounded),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 108),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    BankInfoCard(
+                      ownerName: user?.ownerName,
+                      profileId: profileId,
+                      statusLabel: status.label,
+                      statusColor: status.color,
+                    ),
+                    const SizedBox(height: 14),
+                    KycStepSection(
+                      step: '1',
+                      title: 'Bank Account',
+                      subtitle: 'Account holder and bank details',
+                      icon: Icons.account_balance_rounded,
+                      required: true,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          StoreFormField(
+                            controller: _accountNameCtrl,
+                            label: 'Account Holder Name',
+                            icon: Icons.person_rounded,
+                            required: true,
+                            textCapitalization: TextCapitalization.words,
+                            validator: (v) =>
+                                v?.trim().isEmpty == true ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          StoreFormField(
+                            controller: _bankNameCtrl,
+                            label: 'Bank Name',
+                            icon: Icons.account_balance_rounded,
+                            required: true,
+                            textCapitalization: TextCapitalization.words,
+                            validator: (v) =>
+                                v?.trim().isEmpty == true ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          StoreFormField(
+                            controller: _accountNumberCtrl,
+                            label: 'Account Number',
+                            icon: Icons.credit_card_rounded,
+                            required: true,
+                            keyboardType: TextInputType.number,
+                            obscureText: _obscureAccount,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            validator: (v) {
+                              if (v?.trim().isEmpty == true) return 'Required';
+                              if (v!.trim().length < 9) {
+                                return 'Enter valid account number';
+                              }
+                              return null;
+                            },
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => setState(
+                                () => _obscureAccount = !_obscureAccount,
                               ),
-                              validator: (v) =>
-                                  v?.trim().isEmpty == true ? 'Required' : null,
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _bankNameCtrl,
-                              textCapitalization: TextCapitalization.words,
-                              decoration: const InputDecoration(
-                                labelText: 'Bank Name',
-                                prefixIcon:
-                                    Icon(Icons.account_balance_rounded),
+                              icon: Icon(
+                                _obscureAccount
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 18,
                               ),
-                              validator: (v) =>
-                                  v?.trim().isEmpty == true ? 'Required' : null,
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _accountNumberCtrl,
-                              obscureText: _obscureAccount,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: InputDecoration(
-                                labelText: 'Account Number',
-                                prefixIcon:
-                                    const Icon(Icons.credit_card_rounded),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscureAccount
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                  onPressed: () => setState(
-                                    () => _obscureAccount = !_obscureAccount,
-                                  ),
-                                ),
-                              ),
-                              validator: (v) {
-                                if (v?.trim().isEmpty == true) {
-                                  return 'Required';
-                                }
-                                if (v!.trim().length < 9) {
-                                  return 'Enter valid account number';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _confirmAccountCtrl,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: const InputDecoration(
-                                labelText: 'Confirm Account Number',
-                                prefixIcon: Icon(Icons.credit_card_rounded),
-                              ),
-                              validator: (v) {
-                                if (v?.trim().isEmpty == true) {
-                                  return 'Required';
-                                }
-                                if (v != _accountNumberCtrl.text) {
-                                  return 'Account numbers do not match';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _ifscCtrl,
-                              textCapitalization: TextCapitalization.characters,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[A-Za-z0-9]'),
-                                ),
-                                LengthLimitingTextInputFormatter(11),
-                              ],
-                              decoration: const InputDecoration(
-                                labelText: 'IFSC Code',
-                                prefixIcon: Icon(Icons.numbers_rounded),
-                                helperText: 'e.g. SBIN0001234',
-                              ),
-                              validator: (v) {
-                                if (v?.trim().isEmpty == true) {
-                                  return 'Required';
-                                }
-                                if (v!.trim().length != 11) {
-                                  return 'IFSC must be 11 characters';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'Account Type',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                              label: Text(
+                                _obscureAccount ? 'Show number' : 'Hide number',
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                for (final type in ['savings', 'current'])
-                                  Expanded(
-                                    child: Padding(
-                                      padding: EdgeInsets.only(
-                                        right: type == 'savings' ? 6 : 0,
-                                        left: type == 'current' ? 6 : 0,
-                                      ),
-                                      child: _AccountTypeChip(
-                                        label: type[0].toUpperCase() +
-                                            type.substring(1),
-                                        selected: _accountType == type,
-                                        onTap: () =>
-                                            setState(() => _accountType = type),
-                                      ),
+                          ),
+                          const SizedBox(height: 4),
+                          StoreFormField(
+                            controller: _confirmAccountCtrl,
+                            label: 'Confirm Account Number',
+                            icon: Icons.credit_card_rounded,
+                            required: true,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            validator: (v) {
+                              if (v?.trim().isEmpty == true) return 'Required';
+                              if (v != _accountNumberCtrl.text) {
+                                return 'Account numbers do not match';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          StoreFormField(
+                            controller: _ifscCtrl,
+                            label: 'IFSC Code',
+                            icon: Icons.numbers_rounded,
+                            required: true,
+                            hint: 'SBIN0001234',
+                            textCapitalization: TextCapitalization.characters,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[A-Za-z0-9]'),
+                              ),
+                              LengthLimitingTextInputFormatter(11),
+                            ],
+                            validator: (v) {
+                              if (v?.trim().isEmpty == true) return 'Required';
+                              if (v!.trim().length != 11) {
+                                return 'IFSC must be 11 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          const StoreFieldLabel(
+                            label: 'Account Type',
+                            icon: Icons.savings_outlined,
+                            required: true,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              for (final type in ['savings', 'current'])
+                                Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      right: type == 'savings' ? 6 : 0,
+                                      left: type == 'current' ? 6 : 0,
+                                    ),
+                                    child: _AccountTypeChip(
+                                      label: type[0].toUpperCase() +
+                                          type.substring(1),
+                                      selected: _accountType == type,
+                                      onTap: () =>
+                                          setState(() => _accountType = type),
                                     ),
                                   ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      KycStepSection(
-                        step: '2',
-                        title: 'UPI',
-                        subtitle: 'Optional — for faster settlements',
-                        icon: Icons.phone_android_rounded,
-                        child: TextFormField(
-                          controller: _upiCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'UPI ID',
-                            prefixIcon: Icon(Icons.payment_rounded),
-                            helperText: 'e.g. yourname@ybl',
+                                ),
+                            ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 14),
+                    KycStepSection(
+                      step: '2',
+                      title: 'UPI',
+                      subtitle: 'Optional — for faster settlements',
+                      icon: Icons.phone_android_rounded,
+                      child: StoreFormField(
+                        controller: _upiCtrl,
+                        label: 'UPI ID',
+                        icon: Icons.payment_rounded,
+                        hint: 'yourname@ybl',
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -356,7 +352,7 @@ class _AccountTypeChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? AppColors.primary.withValues(alpha: 0.1)
-                : AppColors.surface,
+                : AppColors.background,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.primary : AppColors.border,
@@ -370,77 +366,6 @@ class _AccountTypeChip extends StatelessWidget {
               fontWeight: FontWeight.w700,
               fontSize: 13,
               color: selected ? AppColors.primary : AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BankSubmitBar extends StatelessWidget {
-  const _BankSubmitBar({
-    required this.loading,
-    required this.isUpdate,
-    required this.onSubmit,
-  });
-
-  final bool loading;
-  final bool isUpdate;
-  final VoidCallback onSubmit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      elevation: 8,
-      shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: loading ? null : onSubmit,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isUpdate
-                              ? Icons.save_rounded
-                              : Icons.check_rounded,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isUpdate
-                              ? 'Update Bank Account'
-                              : 'Save Bank Account',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    ),
             ),
           ),
         ),

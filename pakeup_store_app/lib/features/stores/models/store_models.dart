@@ -51,14 +51,6 @@ class StoreRecord {
   final DateTime? createdAt;
   final List<DaySchedule> schedules;
 
-  bool get isKycApproved => kycStatus == 'approved';
-
-  String get kycLabel => switch (kycStatus) {
-        'approved' => 'KYC Approved',
-        'rejected' => 'KYC Rejected',
-        _ => 'KYC Pending',
-      };
-
   String get locationLabel {
     final cityState = [city, state]
         .whereType<String>()
@@ -72,18 +64,43 @@ class StoreRecord {
   }
 
   String get addressLabel {
+    final parts = <String>[];
     final addr = address?.trim();
+    if (addr != null && addr.isNotEmpty) parts.add(addr);
+
     final cityState = [city, state]
         .whereType<String>()
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .join(', ');
-    if (addr != null && addr.isNotEmpty) {
-      if (cityState.isNotEmpty) return '$addr, $cityState';
-      return addr;
-    }
-    if (cityState.isNotEmpty) return cityState;
+    if (cityState.isNotEmpty) parts.add(cityState);
+
+    final pin = pincode?.trim();
+    if (pin != null && pin.isNotEmpty) parts.add(pin);
+
+    if (parts.isNotEmpty) return parts.join(', ');
     return 'No address set';
+  }
+
+  bool get isKycApproved => kycStatus == 'approved';
+
+  String get kycLabel => switch (kycStatus) {
+        'approved' => 'KYC Approved',
+        'rejected' => 'KYC Rejected',
+        _ => 'KYC Pending',
+      };
+
+  String get categoryLabel {
+    final value = category.trim().replaceAll('_', ' ');
+    if (value.isEmpty) return 'Store';
+    return value
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) =>
+              part[0].toUpperCase() + part.substring(1).toLowerCase(),
+        )
+        .join(' ');
   }
 
   factory StoreRecord.fromJson(Map<String, dynamic> json) => StoreRecord(

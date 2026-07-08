@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/pull_to_refresh.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -217,7 +218,7 @@ class ProfileScreen extends ConsumerWidget {
                             await ref
                                 .read(authStateProvider.notifier)
                                 .logout();
-                            if (context.mounted) context.go('/login');
+                            ref.read(routerProvider).go('/login');
                           }
                         },
                       ),

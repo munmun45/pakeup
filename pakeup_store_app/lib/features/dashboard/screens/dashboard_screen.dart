@@ -51,21 +51,27 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          _DashboardHeader(
-            name: partner.ownerName.isNotEmpty
-                ? partner.ownerName
-                : partner.businessName,
-            initial:
-                (partner.ownerName.isNotEmpty
-                        ? partner.ownerName
-                        : partner.businessName)
-                    .isNotEmpty
-                ? (partner.ownerName.isNotEmpty
+          Material(
+            elevation: 6,
+            shadowColor: Colors.black.withValues(alpha: 0.18),
+            color: Colors.transparent,
+            child: _DashboardHeader(
+              name: partner.ownerName.isNotEmpty
+                  ? partner.ownerName
+                  : partner.businessName,
+              profileId: partner.profileId,
+              initial:
+                  (partner.ownerName.isNotEmpty
                           ? partner.ownerName
-                          : partner.businessName)[0]
-                      .toUpperCase()
-                : 'P',
-            kycStatus: kycStatus,
+                          : partner.businessName)
+                      .isNotEmpty
+                  ? (partner.ownerName.isNotEmpty
+                            ? partner.ownerName
+                            : partner.businessName)[0]
+                        .toUpperCase()
+                  : 'P',
+              kycStatus: kycStatus,
+            ),
           ),
           Expanded(
             child: pullToRefresh(
@@ -81,24 +87,14 @@ class DashboardScreen extends ConsumerWidget {
               },
               child: ListView(
                 physics: alwaysScrollablePhysics,
-                clipBehavior: Clip.none,
+                clipBehavior: Clip.hardEdge,
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.pageHorizontal,
-                  AppSpacing.pageHorizontal,
+                  12,
                   AppSpacing.pageHorizontal,
                   AppSpacing.pageBottom,
                 ),
                 children: [
-                  // KYC banner
-                  if (!kycApproved && hasStores) ...[
-                    _KycBanner(
-                      status: kycStatus,
-                      onTap: () => context.push('/kyc'),
-                    ),
-                    const SizedBox(height: _dashboardSectionGap),
-                  ],
-
-                  // Booking & revenue metrics
                   statsAsync.when(
                     loading: () => const SizedBox(
                       height: 212,
@@ -110,7 +106,13 @@ class DashboardScreen extends ConsumerWidget {
                     data: (stats) => _MetricsPanel(stats: stats),
                   ),
                   const SizedBox(height: _dashboardSectionGap),
-
+                  if (!kycApproved && hasStores) ...[
+                    _KycBanner(
+                      status: kycStatus,
+                      onTap: () => context.push('/kyc'),
+                    ),
+                    const SizedBox(height: _dashboardSectionGap),
+                  ],
                   const SectionHeader(
                     title: 'Quick Actions',
                     compact: true,
@@ -118,7 +120,6 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: _dashboardTitleGap),
                   _QuickActionsGrid(hasStores: hasStores),
                   const SizedBox(height: _dashboardSectionGap),
-
                   const SectionHeader(
                     title: 'Need Help?',
                     compact: true,
@@ -227,16 +228,20 @@ class _DashboardHeader extends StatelessWidget {
     required this.name,
     required this.initial,
     required this.kycStatus,
+    this.profileId,
   });
   final String name;
   final String initial;
   final String kycStatus;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
+    final idLabel = profileId?.trim();
+    final hasId = idLabel != null && idLabel.isNotEmpty;
     return GradientPageHeader(
       title: name,
-      subtitle: 'Welcome back!',
+      subtitle: hasId ? 'Profile ID: $idLabel' : 'Welcome back!',
       initial: initial,
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -442,11 +447,22 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      accentColor: item.color,
-      compact: true,
-      padding: const EdgeInsets.all(14),
-      child: Column(
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: PremiumCard(
+        accentColor: item.color,
+        compact: true,
+        padding: const EdgeInsets.all(14),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -488,6 +504,7 @@ class _MetricCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

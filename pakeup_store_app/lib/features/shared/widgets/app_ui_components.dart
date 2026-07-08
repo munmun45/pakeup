@@ -186,6 +186,30 @@ class QuickActionChip extends StatelessWidget {
   }
 }
 
+/// Plain profile ID line (e.g. Profile ID: A000001).
+class PartnerProfileIdText extends StatelessWidget {
+  const PartnerProfileIdText({super.key, required this.profileId});
+
+  final String profileId;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = profileId.trim();
+    if (id.isEmpty) return const SizedBox.shrink();
+
+    return Text(
+      'Profile ID: $id',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.9),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
 class GradientPageHeader extends StatelessWidget {
   const GradientPageHeader({
     super.key,
@@ -208,7 +232,7 @@ class GradientPageHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topPad + 14, 20, 18),
+      padding: EdgeInsets.fromLTRB(20, topPad + 14, 20, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

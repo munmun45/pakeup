@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/utils/partner_kyc_status.dart';
 import '../../shared/widgets/app_snackbar.dart';
+import '../../shared/widgets/app_ui_components.dart';
 import '../../stores/providers/stores_provider.dart';
 
 class AppSideMenuDrawer extends ConsumerWidget {
@@ -29,6 +31,7 @@ class AppSideMenuDrawer extends ConsumerWidget {
     final displayName = partner != null && partner.ownerName.trim().isNotEmpty
         ? partner.ownerName.trim()
         : 'Partner';
+    final profileId = partner?.profileId?.trim();
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'P';
 
     return Drawer(
@@ -80,8 +83,12 @@ class AppSideMenuDrawer extends ConsumerWidget {
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _KycBadge(status: kycStatus),
+                      if (profileId != null && profileId.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        PartnerProfileIdText(profileId: profileId),
+                      ],
+                      const SizedBox(height: 2),
+                      _KycStatusText(status: kycStatus),
                     ],
                   ),
                 ),
@@ -168,9 +175,9 @@ class AppSideMenuDrawer extends ConsumerWidget {
                   label: 'Sign Out',
                   destructive: true,
                   onTap: () async {
-                    Navigator.pop(context);
                     final confirm = await showDialog<bool>(
                       context: context,
+                      useRootNavigator: true,
                       builder: (ctx) => AlertDialog(
                         title: const Text('Sign Out'),
                         content: const Text(
@@ -194,10 +201,10 @@ class AppSideMenuDrawer extends ConsumerWidget {
                         ],
                       ),
                     );
-                    if (confirm == true) {
-                      await ref.read(authStateProvider.notifier).logout();
-                      if (context.mounted) context.go('/login');
-                    }
+                    if (confirm != true) return;
+                    if (context.mounted) Navigator.pop(context);
+                    await ref.read(authStateProvider.notifier).logout();
+                    ref.read(routerProvider).go('/login');
                   },
                 ),
                 const SizedBox(height: 16),
@@ -210,8 +217,8 @@ class AppSideMenuDrawer extends ConsumerWidget {
   }
 }
 
-class _KycBadge extends StatelessWidget {
-  const _KycBadge({required this.status});
+class _KycStatusText extends StatelessWidget {
+  const _KycStatusText({required this.status});
 
   final String status;
 
@@ -220,51 +227,19 @@ class _KycBadge extends StatelessWidget {
     final approved = status == 'approved';
     final rejected = status == 'rejected';
     final label = approved
-        ? 'KYC Verified'
+        ? 'Verified'
         : rejected
-            ? 'KYC Rejected'
-            : 'KYC Pending';
-    final color = approved
-        ? AppColors.success
-        : rejected
-            ? AppColors.error
-            : Colors.white;
+            ? 'Rejected'
+            : 'Pending';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: approved || rejected
-            ? color.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: approved || rejected
-              ? color.withValues(alpha: 0.35)
-              : Colors.white.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            approved
-                ? Icons.verified_rounded
-                : rejected
-                    ? Icons.cancel_rounded
-                    : Icons.pending_rounded,
-            size: 12,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+    return Text(
+      'KYC Status: $label',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.9),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
       ),
     );
   }

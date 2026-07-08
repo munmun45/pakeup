@@ -299,7 +299,7 @@ class _PartnerAccountsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const minWidth = 1130.0;
+        const minWidth = 1218.0;
         final table = Card(
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -321,6 +321,11 @@ class _PartnerAccountsTable extends StatelessWidget {
                     const SizedBox(
                       width: 160,
                       child: Text('OWNER', style: partnerTableHeaderStyle),
+                    ),
+                    _buildDivider(),
+                    const SizedBox(
+                      width: 88,
+                      child: Text('PROFILE ID', style: partnerTableHeaderStyle),
                     ),
                     _buildDivider(),
                     const SizedBox(
@@ -539,30 +544,34 @@ class _PartnerAccountRow extends StatelessWidget {
                             fontSize: 13.5,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Tooltip(
-                          message: 'Click to copy ID: ${account.id}',
-                          child: InkWell(
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: account.id));
-                              AppSnackBar.success(context, 'Copied ID: ${account.id}');
-                            },
-                            child: Text(
-                              'ID: ${account.id}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontFamily: 'monospace',
-                                color: AppColors.textSecondary.withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                 ],
+              ),
+            ),
+            _buildDivider(),
+            SizedBox(
+              width: 88,
+              child: Tooltip(
+                message: 'Click to copy profile ID',
+                child: InkWell(
+                  onTap: () {
+                    final copyId = account.profileId ?? account.id;
+                    Clipboard.setData(ClipboardData(text: copyId));
+                    AppSnackBar.success(context, 'Copied ID: $copyId');
+                  },
+                  child: Text(
+                    account.profileId ?? '—',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
               ),
             ),
             _buildDivider(),

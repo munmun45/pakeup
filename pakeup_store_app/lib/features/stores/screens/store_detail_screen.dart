@@ -14,6 +14,12 @@ import '../models/store_schedule_models.dart';
 import '../providers/stores_provider.dart';
 import '../widgets/store_images_section.dart';
 
+const _storeHeaderGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+);
+
 class StoreDetailScreen extends ConsumerStatefulWidget {
   const StoreDetailScreen({super.key, required this.storeId});
 
@@ -87,20 +93,15 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
   Widget build(BuildContext context) {
     final storeAsync = ref.watch(storeDetailProvider(widget.storeId));
     final partner = ref.watch(authStateProvider).valueOrNull;
+    final profileId = partner?.profileId?.trim();
 
     return PageScaffold(
-      appBar: AppPageAppBar(
-        title: 'Store Details',
-        actions: [
-          storeAsync.maybeWhen(
-            data: (store) => IconButton(
-              onPressed: () => context.push('/stores/${store.id}/edit'),
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit store',
-            ),
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
+      appBar: storeAsync.maybeWhen(
+        data: (store) => _StoreDetailAppBar(
+          profileId: profileId,
+          onEdit: () => context.push('/stores/${store.id}/edit'),
+        ),
+        orElse: () => _StoreDetailAppBar(profileId: profileId),
       ),
       bottomNavigationBar: storeAsync.maybeWhen(
         data: (store) => _StoreActionBar(
@@ -137,22 +138,24 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
           },
           child: ListView(
             physics: alwaysScrollablePhysics,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             children: [
               _HeaderCard(store: store),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               StoreImagesSection(
                 store: store,
                 onChanged: () =>
                     ref.invalidate(storeDetailProvider(widget.storeId)),
               ),
-              const SizedBox(height: 12),
-              _ActiveCard(
-                store: store,
-                loading: _togglingActive,
-                onChanged: (v) => _toggleActive(store, v),
+              const SizedBox(height: 14),
+              _DetailSurface(
+                child: _ActiveCard(
+                  store: store,
+                  loading: _togglingActive,
+                  onChanged: (v) => _toggleActive(store, v),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _Section(
                 title: 'Contact',
                 icon: Icons.badge_outlined,
@@ -179,7 +182,7 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _Section(
                 title: 'Owner Details',
                 icon: Icons.person_outline_rounded,
@@ -216,7 +219,7 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _Section(
                 title: 'Location',
                 icon: Icons.location_on_outlined,
@@ -240,12 +243,12 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _Section(
                 title: 'Business',
                 icon: Icons.storefront_outlined,
                 children: [
-                  _InfoRow('Category', store.category.toUpperCase()),
+                  _InfoRow('Category', store.categoryLabel),
                   if (store.description != null && store.description!.isNotEmpty)
                     _InfoRow('Description', store.description!),
                 ],
@@ -340,6 +343,112 @@ class _StoreDetailScreenState extends ConsumerState<StoreDetailScreen> {
   }
 }
 
+class _StoreDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _StoreDetailAppBar({this.profileId, this.onEdit});
+
+  final String? profileId;
+  final VoidCallback? onEdit;
+
+  @override
+  Size get preferredSize {
+    final hasId = profileId?.trim().isNotEmpty == true;
+    return Size.fromHeight(hasId ? 56 : kToolbarHeight);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = profileId?.trim();
+
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Colors.white,
+      toolbarHeight: preferredSize.height,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.secondary],
+          ),
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Store Details',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+          if (id != null && id.isNotEmpty)
+            Text(
+              'Profile ID: $id',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        if (onEdit != null)
+          IconButton(
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit store',
+          ),
+      ],
+    );
+  }
+}
+
+class _DetailSurface extends StatelessWidget {
+  const _DetailSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 20,
+            offset: const Offset(0, 7),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      ),
+    );
+  }
+}
+
 class _StoreActionBar extends StatelessWidget {
   const _StoreActionBar({
     required this.storeId,
@@ -358,21 +467,17 @@ class _StoreActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buttonStyle = OutlinedButton.styleFrom(
-      foregroundColor: AppColors.primary,
-      disabledForegroundColor: AppColors.textSecondary,
-      side: const BorderSide(color: AppColors.primary),
-      disabledBackgroundColor: AppColors.background,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
-    );
-
-    return Material(
-      color: AppColors.surface,
-      elevation: 8,
-      shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -380,85 +485,97 @@ class _StoreActionBar extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: _ActionButton(
+                  label: 'KYC',
+                  icon: Icons.verified_user_outlined,
+                  enabled: true,
                   onPressed: () => context.push('/kyc?storeId=$storeId'),
-                  icon: const Icon(Icons.verified_user_outlined, size: 17),
-                  label: const Text(
-                    'KYC',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
-                  ),
-                  style: buttonStyle,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
+                child: _ActionButton(
+                  label: 'Bank Account',
+                  icon: Icons.account_balance_outlined,
+                  enabled: kycApproved,
                   onPressed: kycApproved
                       ? () => context.push('/bank')
                       : () => _showKycRequired(context),
-                  icon: Icon(
-                    Icons.account_balance_outlined,
-                    size: 17,
-                    color: kycApproved
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                  ),
-                  label: Text(
-                    'Bank Account',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: kycApproved
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                  style: buttonStyle.copyWith(
-                    side: WidgetStatePropertyAll(
-                      BorderSide(
-                        color: kycApproved
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
+                child: _ActionButton(
+                  label: 'Services',
+                  icon: Icons.spa_outlined,
+                  enabled: kycApproved,
                   onPressed: kycApproved
                       ? () => context.go('/services?storeId=$storeId')
                       : () => _showKycRequired(context),
-                  icon: Icon(
-                    Icons.spa_outlined,
-                    size: 17,
-                    color: kycApproved
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                  ),
-                  label: Text(
-                    'Services',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: kycApproved
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                  style: buttonStyle.copyWith(
-                    side: WidgetStatePropertyAll(
-                      BorderSide(
-                        color: kycApproved
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                    ),
-                  ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = enabled ? AppColors.primary : AppColors.textSecondary;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: enabled
+                  ? AppColors.primary.withValues(alpha: 0.45)
+                  : AppColors.border,
+            ),
+            color: enabled
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : AppColors.background,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: tint),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: tint,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -478,52 +595,124 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
+    return _DetailSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _StoreAvatar(store: store),
-          const SizedBox(width: 14),
-          Expanded(
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: const BoxDecoration(
+              gradient: _storeHeaderGradient,
+              border: Border(
+                bottom: BorderSide(color: Colors.white, width: 1.5),
+              ),
+            ),
+            child: Row(
+              children: [
+                _StoreAvatar(store: store),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        store.businessName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        store.categoryLabel,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  store.businessName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        store.addressLabel,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  [store.city, store.state].whereType<String>().join(', ').isEmpty
-                      ? 'No location set'
-                      : [store.city, store.state]
-                          .whereType<String>()
-                          .join(', '),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+                if (store.phone?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.phone_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          store.phone!.trim(),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 6,
+                  runSpacing: 8,
                   children: [
                     _Chip(
+                      icon: Icons.spa_outlined,
+                      label: '${store.serviceCount} services',
+                    ),
+                    _Chip(
+                      icon: Icons.verified_outlined,
                       label: store.kycLabel,
                       color: _kycColor,
                     ),
                     _Chip(
+                      icon: Icons.circle,
                       label: store.isActive ? 'Active' : 'Inactive',
-                      color: store.isActive ? AppColors.success : AppColors.error,
+                      color: store.isActive
+                          ? AppColors.success
+                          : AppColors.textSecondary,
+                      iconSize: 7,
                     ),
                   ],
                 ),
@@ -549,29 +738,22 @@ class _ActiveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+    return SwitchListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      title: const Text(
+        'Store Active',
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
       ),
-      child: SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text(
-          'Store Active',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          store.isActive
-              ? 'Visible to customers'
-              : 'Hidden from customers',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        value: store.isActive,
-        onChanged: loading ? null : onChanged,
-        activeThumbColor: AppColors.primary,
+      subtitle: Text(
+        store.isActive
+            ? 'Visible to customers'
+            : 'Hidden from customers',
+        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
       ),
+      value: store.isActive,
+      onChanged: loading ? null : onChanged,
+      activeThumbColor: const Color(0xFF1565C0),
+      activeTrackColor: const Color(0xFF1565C0).withValues(alpha: 0.35),
     );
   }
 }
@@ -589,32 +771,41 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+    return _DetailSurface(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 17,
+                    color: const Color(0xFF1565C0),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -667,7 +858,7 @@ class _OpeningHoursSection extends StatelessWidget {
                   size: 16,
                   color: schedules[i].isClosed
                       ? AppColors.error
-                      : AppColors.primary,
+                      : const Color(0xFF1565C0),
                 ),
               ],
             ),
@@ -693,9 +884,9 @@ class _InfoRow extends StatelessWidget {
     final valueStyle = TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w500,
-      color: _tappable ? AppColors.primary : AppColors.textPrimary,
+      color: _tappable ? const Color(0xFF1565C0) : AppColors.textPrimary,
       decoration: _tappable ? TextDecoration.underline : null,
-      decorationColor: _tappable ? AppColors.primary : null,
+      decorationColor: _tappable ? const Color(0xFF1565C0) : null,
     );
 
     return Padding(
@@ -738,26 +929,37 @@ class _StoreAvatar extends StatelessWidget {
     final imageUrl = store.primaryImage ??
         (store.images.isNotEmpty ? store.images.first : null);
 
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 28,
-        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-        backgroundImage: NetworkImage(imageUrl),
-        onBackgroundImageError: (exception, stackTrace) {},
-      );
-    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 54,
+        height: 54,
+        child: imageUrl != null && imageUrl.isNotEmpty
+            ? Image.network(
+                imageUrl,
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+                errorBuilder: (_, e, s) => _fallback(),
+              )
+            : _fallback(),
+      ),
+    );
+  }
 
-    return CircleAvatar(
-      radius: 28,
-      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-      child: Text(
-        store.businessName.isNotEmpty
-            ? store.businessName[0].toUpperCase()
-            : 'S',
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontWeight: FontWeight.w800,
-          fontSize: 22,
+  Widget _fallback() {
+    return ColoredBox(
+      color: Colors.white.withValues(alpha: 0.22),
+      child: Center(
+        child: Text(
+          store.businessName.isNotEmpty
+              ? store.businessName[0].toUpperCase()
+              : 'S',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
+          ),
         ),
       ),
     );
@@ -765,25 +967,44 @@ class _StoreAvatar extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.color});
+  const _Chip({
+    required this.label,
+    this.icon,
+    this.color,
+    this.iconSize = 12,
+  });
+
   final String label;
-  final Color color;
+  final IconData? icon;
+  final Color? color;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
+    final tint = color ?? AppColors.textSecondary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: tint.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: tint.withValues(alpha: 0.22)),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: iconSize, color: tint),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: tint,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

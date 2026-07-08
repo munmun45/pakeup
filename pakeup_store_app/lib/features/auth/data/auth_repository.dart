@@ -25,6 +25,7 @@ class PartnerUser {
     required this.businessName,
     required this.ownerName,
     required this.loginId,
+    this.profileId,
     this.phone,
     this.whatsapp,
     this.alternatePhone,
@@ -41,6 +42,7 @@ class PartnerUser {
   final String businessName;
   final String ownerName;
   final String loginId;
+  final String? profileId;
   final String? phone;
   final String? whatsapp;
   final String? alternatePhone;
@@ -64,6 +66,7 @@ class PartnerUser {
         businessName: businessName,
         ownerName: ownerName,
         loginId: loginId,
+        profileId: profileId,
         phone: phone,
         whatsapp: whatsapp ?? this.whatsapp,
         alternatePhone: alternatePhone ?? this.alternatePhone,
@@ -78,6 +81,7 @@ class PartnerUser {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'profile_id': profileId,
         'business_name': businessName,
         'owner_name': ownerName,
         'login_id': loginId,
@@ -101,6 +105,7 @@ class PartnerUser {
 
     return PartnerUser(
         id: json['id'] as String,
+        profileId: json['profile_id'] as String?,
         businessName: json['business_name'] as String,
         ownerName: json['owner_name'] as String,
         loginId: loginId,

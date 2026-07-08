@@ -464,6 +464,7 @@ class PartnerKycRepository {
       byAccount.putIfAbsent(accountId, () {
         return {
           'account_id': accountId,
+          'profile_id': partner['profile_id'],
           'owner_name': partner['owner_name'] ?? '',
           'phone': partner['phone'],
           'email': partner['email'],

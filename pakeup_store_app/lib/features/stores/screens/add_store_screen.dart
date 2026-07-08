@@ -237,17 +237,18 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: const Text('Add Store'),
-        centerTitle: true,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-      ),
-      bottomNavigationBar: Material(
-        elevation: 8,
-        color: AppColors.surface,
+      appBar: _AddStoreAppBar(profileId: user.profileId),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
         child: SafeArea(
           top: false,
           child: Padding(
@@ -255,32 +256,53 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
             child: SizedBox(
               height: 52,
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [AppColors.primary, AppColors.secondary],
                   ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: _loading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.transparent,
+                    disabledForegroundColor: Colors.white70,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Add Store',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Add Store',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
+                ),
               ),
             ),
           ),
@@ -290,27 +312,24 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
         controller: _scrollCtrl,
         physics: const ClampingScrollPhysics(),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-                    StoreFormSection(
-                      title: 'Parent Account',
-                      icon: Icons.account_circle_outlined,
-                      child: _ParentAccountCard(
-                        ownerName: user.ownerName,
-                        phone: user.phone ?? user.loginId,
-                        email: user.email,
-                        storeCount: user.storeCount,
-                        onUseContact: () => _useParentContact(user),
-                      ),
+                    _ParentAccountCard(
+                      ownerName: user.ownerName,
+                      phone: user.phone ?? user.loginId,
+                      email: user.email,
+                      profileId: user.profileId,
+                      storeCount: user.storeCount,
+                      onUseContact: () => _useParentContact(user),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     StoreFormSection(
                       title: 'Store Contact Details',
-                      icon: Icons.badge_outlined,
+                      subtitle: 'Phone and WhatsApp for this store',
                       child: Column(
                         children: [
                           StoreFieldRow(
@@ -354,10 +373,10 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     StoreFormSection(
                       title: 'Store Information',
-                      icon: Icons.storefront_outlined,
+                      subtitle: 'Business name, category, and description',
                       child: Column(
                         children: [
                           StoreFormField(
@@ -403,10 +422,10 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     StoreFormSection(
                       title: 'Location & Map',
-                      icon: Icons.location_on_outlined,
+                      subtitle: 'Pin your store on the map and enter address',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -482,10 +501,10 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     StoreFormSection(
                       title: 'Opening Hours',
-                      icon: Icons.access_time_rounded,
+                      subtitle: 'When customers can visit or book',
                       child: StoreOpenHoursSection(
                         schedules: _schedules,
                         onChanged: (v) => setState(() => _schedules = v),
@@ -502,6 +521,65 @@ class _AddStoreScreenState extends ConsumerState<AddStoreScreen>
     if (v?.trim().isEmpty == true) return 'Required';
     if (v!.trim().length != 10) return 'Enter 10 digits';
     return null;
+  }
+}
+
+class _AddStoreAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _AddStoreAppBar({this.profileId});
+
+  final String? profileId;
+
+  @override
+  Size get preferredSize {
+    final hasId = profileId?.trim().isNotEmpty == true;
+    return Size.fromHeight(hasId ? 56 : kToolbarHeight);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = profileId?.trim();
+
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Colors.white,
+      toolbarHeight: preferredSize.height,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.secondary],
+          ),
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Add Store',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+          if (id != null && id.isNotEmpty)
+            Text(
+              'Profile ID: $id',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -576,6 +654,7 @@ class _ParentAccountCard extends StatelessWidget {
     required this.ownerName,
     required this.phone,
     this.email,
+    this.profileId,
     required this.storeCount,
     required this.onUseContact,
   });
@@ -583,114 +662,172 @@ class _ParentAccountCard extends StatelessWidget {
   final String ownerName;
   final String phone;
   final String? email;
+  final String? profileId;
   final int storeCount;
   final VoidCallback onUseContact;
 
   @override
   Widget build(BuildContext context) {
+    final id = profileId?.trim();
+
     return Container(
-      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                child: Text(
-                  ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'P',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ownerName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      phone,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle_rounded,
-                        size: 11, color: AppColors.success),
-                    SizedBox(width: 3),
-                    Text(
-                      'Selected',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          const SizedBox(height: 6),
-          Text(
-            '$storeCount store${storeCount == 1 ? '' : 's'} on this account',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
+        ],
+      ),
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.15),
             ),
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 34,
-            child: OutlinedButton.icon(
-              onPressed: onUseContact,
-              icon: const Icon(Icons.copy_all_rounded, size: 14),
-              label: const Text(
-                'Use parent contact',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [AppColors.primary, AppColors.secondary],
               ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                backgroundColor: AppColors.surface,
-                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white.withValues(alpha: 0.22),
+                  child: Text(
+                    ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'P',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ownerName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        phone,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        size: 12,
+                        color: Colors.white.withValues(alpha: 0.95),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Selected',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.95),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (id != null && id.isNotEmpty)
+                  Text(
+                    'Profile ID: $id',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                if (id != null && id.isNotEmpty) const SizedBox(height: 4),
+                Text(
+                  '$storeCount store${storeCount == 1 ? '' : 's'} on this account',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 38,
+                  child: FilledButton.icon(
+                    onPressed: onUseContact,
+                    icon: const Icon(Icons.copy_all_rounded, size: 16),
+                    label: const Text(
+                      'Use parent contact',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }
