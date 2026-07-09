@@ -16,13 +16,78 @@ class PartnerServicesRepository {
       params: {'caller_id': callerId},
     );
     if (result == null) return [];
-    return (result as List<dynamic>)
+
+    final list = result is List<dynamic> ? result : const <dynamic>[];
+    final services = list
         .map(
           (e) => PartnerServiceRecord.fromJson(
             Map<String, dynamic>.from(e as Map),
           ),
         )
         .toList();
+
+    try {
+      final enrichResults = await Future.wait<dynamic>([
+        _client.rpc<dynamic>(
+          'list_partners',
+          params: {'caller_id': callerId},
+        ),
+        _client.rpc<dynamic>(
+          'list_partner_accounts',
+          params: {'caller_id': callerId},
+        ),
+      ]);
+
+      final partners = enrichResults[0] is List<dynamic>
+          ? (enrichResults[0] as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList()
+          : const <Map<String, dynamic>>[];
+      final accounts = enrichResults[1] is List<dynamic>
+          ? (enrichResults[1] as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList()
+          : const <Map<String, dynamic>>[];
+
+      final profileByAccountId = <String, String>{
+        for (final account in accounts)
+          if (account['id'] is String &&
+              (account['profile_id'] as String?)?.trim().isNotEmpty == true)
+            account['id'] as String: (account['profile_id'] as String).trim(),
+      };
+
+      final profileByPartnerId = <String, String>{};
+      for (final partner in partners) {
+        final partnerId = partner['id'] as String?;
+        if (partnerId == null) continue;
+
+        final direct = (partner['profile_id'] as String?)?.trim();
+        if (direct != null && direct.isNotEmpty) {
+          profileByPartnerId[partnerId] = direct;
+          continue;
+        }
+
+        final accountId = partner['account_id'] as String?;
+        if (accountId == null) continue;
+
+        final profileId = profileByAccountId[accountId];
+        if (profileId != null) {
+          profileByPartnerId[partnerId] = profileId;
+        }
+      }
+
+      return services.map((service) {
+        final existing = service.profileId?.trim();
+        if (existing != null && existing.isNotEmpty) return service;
+
+        final profileId = profileByPartnerId[service.partnerId];
+        if (profileId == null) return service;
+
+        return service.copyWith(profileId: profileId);
+      }).toList();
+    } catch (_) {
+      return services;
+    }
   }
 
   Future<PartnerServiceRecord> createService({

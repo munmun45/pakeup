@@ -62,6 +62,7 @@ class PartnerNavigation {
       accountId: account.id,
       ownerName: account.ownerName,
       storeCount: account.storeCount,
+      profileId: account.profileId,
     );
     ref.read(headerSearchQueryProvider.notifier).state = account.ownerName;
 

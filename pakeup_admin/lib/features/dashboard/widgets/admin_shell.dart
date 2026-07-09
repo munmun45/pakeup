@@ -271,7 +271,7 @@ class AdminShell extends ConsumerWidget {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                accountFilter.ownerName,
+                                accountFilter.headerLabel,
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w600,

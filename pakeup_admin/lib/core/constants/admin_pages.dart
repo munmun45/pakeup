@@ -51,9 +51,9 @@ class AdminPages {
       label: 'Partners',
       pageKeys: [
         'partner_create_account',
+        'partner_manage_accounts',
         'add_partners',
         'partner_kyc',
-        'partner_manage_accounts',
         'partner_services',
         'partner_inventory',
         'partner_categories',

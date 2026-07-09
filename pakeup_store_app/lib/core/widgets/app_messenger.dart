@@ -13,6 +13,7 @@ class AppOverlayMessenger {
     BuildContext context, {
     required Widget child,
     Duration duration = const Duration(seconds: 4),
+    double? bottomMargin,
   }) {
     _hideTimer?.cancel();
     _dismiss();
@@ -23,11 +24,11 @@ class AppOverlayMessenger {
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (ctx) {
-        final padding = MediaQuery.paddingOf(ctx);
+        final bottom = bottomMargin ?? _defaultBottomMargin(ctx);
         return Positioned(
           left: 16,
           right: 16,
-          bottom: padding.bottom + 88,
+          bottom: bottom,
           child: IgnorePointer(
             ignoring: false,
             child: Material(
@@ -57,6 +58,15 @@ class AppOverlayMessenger {
   static void _dismiss() {
     _entry?.remove();
     _entry = null;
+  }
+
+  /// Clears bottom nav, center FAB, and optional save bar area.
+  static double _defaultBottomMargin(BuildContext context) {
+    final padding = MediaQuery.paddingOf(context);
+    const navBarHeight = 68.0;
+    const centerFabClearance = 44.0;
+    const spacing = 20.0;
+    return padding.bottom + navBarHeight + centerFabClearance + spacing;
   }
 
   static OverlayState? _rootOverlay(BuildContext context) {

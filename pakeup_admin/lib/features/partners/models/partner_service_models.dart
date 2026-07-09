@@ -42,6 +42,7 @@ class PartnerServiceRecord {
     this.partnerImages = const [],
     this.ownerName,
     this.phone,
+    this.profileId,
     this.isActive = true,
     this.createdAt,
   });
@@ -51,6 +52,7 @@ class PartnerServiceRecord {
   final String partnerName;
   final String? ownerName;
   final String? phone;
+  final String? profileId;
   final String? primaryImage;
   final List<String> images;
   final String? partnerPrimaryImage;
@@ -91,6 +93,56 @@ class PartnerServiceRecord {
   final bool isActive;
   final DateTime? createdAt;
 
+  PartnerServiceRecord copyWith({String? profileId}) {
+    return PartnerServiceRecord(
+      id: id,
+      partnerId: partnerId,
+      partnerName: partnerName,
+      name: name,
+      description: description,
+      price: price,
+      durationMinutes: durationMinutes,
+      category: category,
+      targetGender: targetGender,
+      discountPrice: discountPrice,
+      serviceLocation: serviceLocation,
+      freeRadiusKm: freeRadiusKm,
+      perKmCharge: perKmCharge,
+      isParlourAvailable: isParlourAvailable,
+      parlourPrice: parlourPrice,
+      parlourDurationMinutes: parlourDurationMinutes,
+      parlourTargetGender: parlourTargetGender,
+      parlourPriceMen: parlourPriceMen,
+      parlourDurationMen: parlourDurationMen,
+      parlourPriceWomen: parlourPriceWomen,
+      parlourDurationWomen: parlourDurationWomen,
+      parlourPrepMen: parlourPrepMen,
+      parlourPrepWomen: parlourPrepWomen,
+      isHomeAvailable: isHomeAvailable,
+      homePrice: homePrice,
+      homeDurationMinutes: homeDurationMinutes,
+      homeTargetGender: homeTargetGender,
+      homePriceMen: homePriceMen,
+      homeDurationMen: homeDurationMen,
+      homePriceWomen: homePriceWomen,
+      homeDurationWomen: homeDurationWomen,
+      homePrepMen: homePrepMen,
+      homePrepWomen: homePrepWomen,
+      serviceImage: serviceImage,
+      isFeatured: isFeatured,
+      prepInstructions: prepInstructions,
+      primaryImage: primaryImage,
+      images: images,
+      partnerPrimaryImage: partnerPrimaryImage,
+      partnerImages: partnerImages,
+      ownerName: ownerName,
+      phone: phone,
+      profileId: profileId ?? this.profileId,
+      isActive: isActive,
+      createdAt: createdAt,
+    );
+  }
+
   factory PartnerServiceRecord.fromJson(Map<String, dynamic> json) {
     return PartnerServiceRecord(
       id: json['id'] as String,
@@ -98,6 +150,7 @@ class PartnerServiceRecord {
       partnerName: json['partner_name'] as String? ?? '',
       ownerName: json['owner_name'] as String?,
       phone: json['phone'] as String?,
+      profileId: json['profile_id'] as String?,
       primaryImage: json['primary_image'] as String?,
       images: (json['images'] as List<dynamic>?)
               ?.map((e) => e as String)

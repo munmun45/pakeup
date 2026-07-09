@@ -51,6 +51,7 @@ class AddPartnersScreen extends ConsumerWidget {
                     final q = searchQuery;
                     return p.businessName.toLowerCase().contains(q) ||
                         p.ownerName.toLowerCase().contains(q) ||
+                        (p.profileId?.toLowerCase().contains(q) ?? false) ||
                         (p.phone?.toLowerCase().contains(q) ?? false) ||
                         (p.city?.toLowerCase().contains(q) ?? false) ||
                         (p.email?.toLowerCase().contains(q) ?? false);
@@ -576,28 +577,17 @@ class _StoreDetailsCell extends ConsumerWidget {
   final PartnerRecord partner;
   final bool isAccountFilterActive;
 
-  Future<void> _copyAndCallPhone(BuildContext context, String phone) async {
-    final digits = phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return;
-
-    await Clipboard.setData(ClipboardData(text: digits));
-
-    final uri = Uri(scheme: 'tel', path: digits);
-    final opened =
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-    if (!context.mounted) return;
-    if (opened) {
-      AppSnackBar.success(context, 'Phone copied · opening dialer');
-    } else {
-      AppSnackBar.success(context, 'Phone number copied');
+  Future<void> _copyProfileId(BuildContext context, String profileId) async {
+    await Clipboard.setData(ClipboardData(text: profileId));
+    if (context.mounted) {
+      AppSnackBar.success(context, 'Profile ID copied');
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {    final phoneRaw = (partner.accountPhone ?? partner.phone)?.trim();
-    final hasPhone = phoneRaw != null && phoneRaw.isNotEmpty;
-    final phone = hasPhone ? phoneRaw : 'No phone';
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileId = partner.profileId?.trim();
+    final hasProfileId = profileId != null && profileId.isNotEmpty;
 
     final avatarUrl = partner.primaryImage != null && partner.primaryImage!.trim().isNotEmpty
         ? partner.primaryImage
@@ -662,6 +652,7 @@ class _StoreDetailsCell extends ConsumerWidget {
                             accountId: partner.accountId!,
                             ownerName: partner.ownerName,
                             storeCount: partner.storeCount,
+                            profileId: partner.profileId,
                           );
                           ref.read(partnerTableFocusProvider.notifier).state =
                               null;
@@ -673,47 +664,17 @@ class _StoreDetailsCell extends ConsumerWidget {
                 Row(
                   children: [
                     Icon(
-                      Icons.phone_outlined,
+                      Icons.badge_outlined,
                       size: 11,
                       color: AppColors.textSecondary.withValues(alpha: 0.75),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: hasPhone
-                          ? Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    '${partner.ownerName} · ',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary
-                                          .withValues(alpha: 0.95),
-                                    ),
-                                  ),
-                                ),
-                                GestureDetector(
-                                   onTap: () =>
-                                       _copyAndCallPhone(context, phoneRaw),
-                                   child: MouseRegion(
-                                     cursor: SystemMouseCursors.click,
-                                     child: Text(
-                                       phone,
-                                       style: const TextStyle(
-                                         fontSize: 11.5,
-                                         fontWeight: FontWeight.w600,
-                                         color: AppColors.primary,
-                                       ),
-                                     ),
-                                   ),
-                                 ),
-                              ],
-                            )
-                          : Text(
-                              partner.ownerName,
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${partner.ownerName} · ',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -723,6 +684,34 @@ class _StoreDetailsCell extends ConsumerWidget {
                                     .withValues(alpha: 0.95),
                               ),
                             ),
+                          ),
+                          if (hasProfileId)
+                            GestureDetector(
+                              onTap: () => _copyProfileId(context, profileId),
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: Text(
+                                  profileId,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Text(
+                              'No Profile ID',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary
+                                    .withValues(alpha: 0.75),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

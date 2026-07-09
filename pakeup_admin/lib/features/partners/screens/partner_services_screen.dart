@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -68,6 +69,8 @@ class PartnerServicesScreen extends ConsumerWidget {
                 final q = searchQuery;
                 final matches = s.partnerName.toLowerCase().contains(q) ||
                     s.name.toLowerCase().contains(q) ||
+                    (s.ownerName?.toLowerCase().contains(q) ?? false) ||
+                    (s.profileId?.toLowerCase().contains(q) ?? false) ||
                     (s.description?.toLowerCase().contains(q) ?? false) ||
                     s.price.toString().contains(q);
                 if (!matches) return false;
@@ -404,6 +407,13 @@ class _ServiceRow extends ConsumerWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggle;
 
+  Future<void> _copyProfileId(BuildContext context, String profileId) async {
+    await Clipboard.setData(ClipboardData(text: profileId));
+    if (context.mounted) {
+      AppSnackBar.success(context, 'Profile ID copied');
+    }
+  }
+
   Widget _buildImagePlaceholder() {
     return Container(
       width: 44,
@@ -451,6 +461,9 @@ class _ServiceRow extends ConsumerWidget {
       genders.add('Home: ${homeGenders.isEmpty ? 'Unisex' : homeGenders.join('/')}');
     }
     genderLabel = genders.isEmpty ? 'Unisex' : genders.join(' · ');
+
+    final profileId = service.profileId?.trim();
+    final hasProfileId = profileId != null && profileId.isNotEmpty;
 
     return Material(
       color: Colors.transparent,
@@ -538,44 +551,48 @@ class _ServiceRow extends ConsumerWidget {
                           Row(
                             children: [
                               Icon(
-                                Icons.person_outline,
+                                Icons.badge_outlined,
                                 size: 12,
                                 color: AppColors.textSecondary.withValues(alpha: 0.75),
                               ),
                               const SizedBox(width: 3),
-                              Text(
-                                service.ownerName ?? '—',
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              if (service.phone?.trim().isNotEmpty == true) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  width: 3,
-                                  height: 3,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
+                              Flexible(
+                                child: Text(
+                                  '${service.ownerName ?? '—'} · ',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Icon(
-                                  Icons.phone_enabled_outlined,
-                                  size: 11,
-                                  color: AppColors.primary.withValues(alpha: 0.8),
-                                ),
-                                const SizedBox(width: 3),
+                              ),
+                              if (hasProfileId)
+                                GestureDetector(
+                                  onTap: () => _copyProfileId(context, profileId),
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: Text(
+                                      profileId,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
                                 Text(
-                                  service.phone!.trim(),
-                                  style: const TextStyle(
+                                  'No Profile ID',
+                                  style: TextStyle(
                                     fontSize: 11.5,
-                                    color: AppColors.primary,
                                     fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary
+                                        .withValues(alpha: 0.75),
                                   ),
                                 ),
-                              ],
                             ],
                           ),
                         ],

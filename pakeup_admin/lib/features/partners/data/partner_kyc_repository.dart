@@ -29,19 +29,181 @@ class PartnerKycRepository {
   }
 
   Future<List<PartnerKycOverviewRecord>> listKycOverview(String callerId) async {
-    final result = await _client.rpc<dynamic>(
+    final overviewResult = await _client.rpc<dynamic>(
       'list_partner_kyc_overview',
       params: {'caller_id': callerId},
     );
-    if (result == null) return [];
-    final list = result as List<dynamic>;
-    return list
+    if (overviewResult == null) return [];
+
+    final list = overviewResult is List<dynamic>
+        ? overviewResult
+        : const <dynamic>[];
+    final rows = list
         .map(
           (e) => PartnerKycOverviewRecord.fromJson(
             Map<String, dynamic>.from(e as Map),
           ),
         )
         .toList();
+
+    try {
+      final enrichResults = await Future.wait<dynamic>([
+        _client.rpc<dynamic>(
+          'list_partners',
+          params: {'caller_id': callerId},
+        ),
+        _client.rpc<dynamic>(
+          'list_partner_accounts',
+          params: {'caller_id': callerId},
+        ),
+      ]);
+
+      final partners = enrichResults[0] is List<dynamic>
+          ? (enrichResults[0] as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList()
+          : const <Map<String, dynamic>>[];
+      final accounts = enrichResults[1] is List<dynamic>
+          ? (enrichResults[1] as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList()
+          : const <Map<String, dynamic>>[];
+
+      final profileByAccountId = <String, String>{
+        for (final account in accounts)
+          if (account['id'] is String &&
+              (account['profile_id'] as String?)?.trim().isNotEmpty == true)
+            account['id'] as String: (account['profile_id'] as String).trim(),
+      };
+
+      final profileByPartnerId = <String, String>{};
+      final accountIdByPartnerId = <String, String>{};
+      for (final partner in partners) {
+        final partnerId = partner['id'] as String?;
+        if (partnerId == null) continue;
+
+        final accountId = partner['account_id'] as String?;
+        if (accountId != null) {
+          accountIdByPartnerId[partnerId] = accountId;
+        }
+
+        final direct = (partner['profile_id'] as String?)?.trim();
+        if (direct != null && direct.isNotEmpty) {
+          profileByPartnerId[partnerId] = direct;
+          continue;
+        }
+
+        if (accountId == null) continue;
+
+        final profileId = profileByAccountId[accountId];
+        if (profileId != null) {
+          profileByPartnerId[partnerId] = profileId;
+        }
+      }
+
+      final enriched = rows.map((row) {
+        var next = row;
+        final accountId = accountIdByPartnerId[row.partnerId];
+        if (accountId != null) {
+          next = next.copyWith(accountId: accountId);
+        }
+
+        final existing = next.profileId?.trim();
+        if (existing != null && existing.isNotEmpty) return next;
+
+        final profileId = profileByPartnerId[row.partnerId];
+        if (profileId == null) return next;
+
+        return next.copyWith(profileId: profileId);
+      }).toList();
+
+      return _dedupeKycByAccount(enriched);
+    } catch (_) {
+      return _dedupeKycByAccount(rows);
+    }
+  }
+
+  List<PartnerKycOverviewRecord> _dedupeKycByAccount(
+    List<PartnerKycOverviewRecord> rows,
+  ) {
+    final groups = <String, List<PartnerKycOverviewRecord>>{};
+    for (final row in rows) {
+      groups.putIfAbsent(_kycGroupKey(row), () => []).add(row);
+    }
+
+    final merged = groups.values.map(_mergeKycGroup).toList()
+      ..sort((a, b) {
+        final da = a.createdAt;
+        final db = b.createdAt;
+        if (da != null && db != null) return db.compareTo(da);
+        if (da != null) return -1;
+        if (db != null) return 1;
+        return a.ownerName.compareTo(b.ownerName);
+      });
+    return merged;
+  }
+
+  String _kycGroupKey(PartnerKycOverviewRecord row) {
+    final accountId = row.accountId?.trim();
+    if (accountId != null && accountId.isNotEmpty) return 'account:$accountId';
+
+    final profileId = row.profileId?.trim();
+    if (profileId != null && profileId.isNotEmpty) return 'profile:$profileId';
+
+    return 'partner:${row.partnerId}';
+  }
+
+  PartnerKycOverviewRecord _mergeKycGroup(List<PartnerKycOverviewRecord> group) {
+    if (group.length == 1) return group.first;
+
+    final sorted = [...group]
+      ..sort((a, b) {
+        final score = _kycRowScore(b).compareTo(_kycRowScore(a));
+        if (score != 0) return score;
+        final da = a.createdAt;
+        final db = b.createdAt;
+        if (da != null && db != null) return db.compareTo(da);
+        if (da != null) return -1;
+        if (db != null) return 1;
+        return 0;
+      });
+    final primary = sorted.first;
+
+    return primary.copyWith(
+      businessName: primary.ownerName,
+      storeCount: group.length,
+      kycStatus: _aggregateKycStatus(group),
+      panNumber: _firstNonEmpty(group.map((r) => r.panNumber)),
+      aadhaarNumber: _firstNonEmpty(group.map((r) => r.aadhaarNumber)),
+      hasAadhaarDoc: group.any((r) => r.hasAadhaarDoc),
+      hasPanDoc: group.any((r) => r.hasPanDoc),
+      hasAgreementDoc: group.any((r) => r.hasAgreementDoc),
+      hasGstDoc: group.any((r) => r.hasGstDoc),
+      hasOtherDoc: group.any((r) => r.hasOtherDoc),
+      hasPassbookDoc: group.any((r) => r.hasPassbookDoc),
+    );
+  }
+
+  int _kycRowScore(PartnerKycOverviewRecord row) {
+    var score = row.uploadedDocCount * 10;
+    if (row.panNumber?.trim().isNotEmpty == true) score += 5;
+    if (row.aadhaarNumber?.trim().isNotEmpty == true) score += 5;
+    if (row.kycStatus == 'approved') score += 3;
+    return score;
+  }
+
+  String _aggregateKycStatus(Iterable<PartnerKycOverviewRecord> rows) {
+    if (rows.any((r) => r.kycStatus == 'approved')) return 'approved';
+    if (rows.any((r) => r.kycStatus == 'rejected')) return 'rejected';
+    return 'pending';
+  }
+
+  String? _firstNonEmpty(Iterable<String?> values) {
+    for (final value in values) {
+      final trimmed = value?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) return trimmed;
+    }
+    return null;
   }
 
   Future<PartnerKycRecord> saveKyc({

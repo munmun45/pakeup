@@ -17,6 +17,7 @@ class AppSnackBar {
     required String message,
     AppSnackBarType type = AppSnackBarType.success,
     Duration duration = const Duration(seconds: 4),
+    double? bottomMargin,
   }) {
     void showNow() {
       if (!context.mounted) return;
@@ -24,6 +25,7 @@ class AppSnackBar {
       AppOverlayMessenger.show(
         context,
         duration: duration,
+        bottomMargin: bottomMargin,
         child: _ToastPill(message: message, type: type),
       );
     }
@@ -31,8 +33,13 @@ class AppSnackBar {
     WidgetsBinding.instance.addPostFrameCallback((_) => showNow());
   }
 
-  static void success(BuildContext context, String message) {
-    show(context, message: message, type: AppSnackBarType.success);
+  static void success(BuildContext context, String message, {double? bottomMargin}) {
+    show(
+      context,
+      message: message,
+      type: AppSnackBarType.success,
+      bottomMargin: bottomMargin,
+    );
   }
 
   static void info(BuildContext context, String message) {
@@ -48,12 +55,13 @@ class AppSnackBar {
     );
   }
 
-  static void error(BuildContext context, String message) {
+  static void error(BuildContext context, String message, {double? bottomMargin}) {
     show(
       context,
       message: message,
       type: AppSnackBarType.error,
       duration: const Duration(seconds: 5),
+      bottomMargin: bottomMargin,
     );
   }
 

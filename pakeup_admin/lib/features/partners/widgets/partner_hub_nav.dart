@@ -156,9 +156,11 @@ class PartnerFocusBanner extends ConsumerWidget {
 
     final String message;
     if (accountFilter != null) {
+      final id = accountFilter.profileId?.trim();
+      final idPart = id != null && id.isNotEmpty ? ' · $id' : '';
       final n = accountFilter.storeCount;
       message =
-          'Showing $n store${n == 1 ? '' : 's'} for ${accountFilter.ownerName}';
+          'Showing $n store${n == 1 ? '' : 's'} for ${accountFilter.ownerName}$idPart';
     } else {
       message = 'Showing: ${focus!.businessName ?? focus.partnerId}';
     }

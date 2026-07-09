@@ -11,6 +11,7 @@ import '../models/partner_service_models.dart';
 import '../models/service_availability_models.dart';
 import '../providers/partner_services_provider.dart';
 import '../providers/partners_provider.dart';
+import '../providers/partner_table_focus_provider.dart';
 import '../providers/service_availability_provider.dart';
 
 part 'inventory_calendar_tab.dart';

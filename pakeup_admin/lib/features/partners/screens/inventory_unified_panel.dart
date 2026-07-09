@@ -114,12 +114,20 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
 
   DateTime get _windowEnd => _windowStart.add(const Duration(days: 6));
 
-  List<PartnerRecord> get _visibleStores {
+  List<PartnerRecord> _filterStores({
+    PartnerAccountStoreFilter? accountFilter,
+    PartnerTableFocus? focus,
+  }) {
     final q = _storeSearch.trim().toLowerCase();
     final stores = widget.partners.where((p) {
+      if (focus != null && p.id != focus.partnerId) return false;
+      if (accountFilter != null && p.accountId != accountFilter.accountId) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return p.businessName.toLowerCase().contains(q) ||
-          p.ownerName.toLowerCase().contains(q);
+          p.ownerName.toLowerCase().contains(q) ||
+          (p.profileId?.toLowerCase().contains(q) ?? false);
     }).toList();
     stores.sort((a, b) {
       final da = a.createdAt;
@@ -130,6 +138,13 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
       return a.businessName.compareTo(b.businessName);
     });
     return stores;
+  }
+
+  Future<void> _copyProfileId(String profileId) async {
+    await Clipboard.setData(ClipboardData(text: profileId));
+    if (mounted) {
+      AppSnackBar.success(context, 'Profile ID copied');
+    }
   }
 
   List<PartnerServiceRecord> get _storeServices {
@@ -220,10 +235,6 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
     super.initState();
     _windowStart = _today();
     _rebuildDrafts();
-    if (_visibleStores.isNotEmpty) {
-      _selectedStoreId = _visibleStores.first.id;
-      _loadWeekInventory();
-    }
   }
 
   @override
@@ -233,8 +244,11 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
       _rebuildDrafts();
       if (_selectedStoreId != null &&
           !widget.partners.any((p) => p.id == _selectedStoreId)) {
-        _selectedStoreId =
-            _visibleStores.isNotEmpty ? _visibleStores.first.id : null;
+        final stores = _filterStores(
+          accountFilter: ref.read(partnerAccountStoreFilterProvider),
+          focus: ref.read(partnerTableFocusProvider),
+        );
+        _selectedStoreId = stores.isNotEmpty ? stores.first.id : null;
       }
       _loadWeekInventory();
     }
@@ -1161,8 +1175,57 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
     );
   }
 
+  void _ensureVisibleStoreSelected(List<PartnerRecord> stores) {
+    if (stores.isEmpty) {
+      if (_selectedStoreId == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _selectedStoreId = null;
+          _expandedDayKey = null;
+          _dayEdits.clear();
+          _availability = {};
+          _dayPricing = {};
+        });
+      });
+      return;
+    }
+
+    if (_selectedStoreId != null &&
+        stores.any((p) => p.id == _selectedStoreId)) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final latest = _filterStores(
+        accountFilter: ref.read(partnerAccountStoreFilterProvider),
+        focus: ref.read(partnerTableFocusProvider),
+      );
+      if (latest.isEmpty) return;
+      final id = latest.first.id;
+      if (_selectedStoreId == id) return;
+      setState(() {
+        _selectedStoreId = id;
+        _expandedDayKey = null;
+        _dayEdits.clear();
+        _availability = {};
+        _dayPricing = {};
+      });
+      _loadWeekInventory();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+    final focus = ref.watch(partnerTableFocusProvider);
+    final stores = _filterStores(
+      accountFilter: accountFilter,
+      focus: focus,
+    );
+    _ensureVisibleStoreSelected(stores);
+
     return SizedBox.expand(
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -1182,7 +1245,7 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: 260, child: _buildStoreList()),
+              SizedBox(width: 260, child: _buildStoreList(stores)),
               Expanded(child: _buildStoreWorkspace()),
             ],
           ),
@@ -1191,9 +1254,7 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
     );
   }
 
-  Widget _buildStoreList() {
-    final stores = _visibleStores;
-
+  Widget _buildStoreList(List<PartnerRecord> stores) {
     return ColoredBox(
       color: AppColors.background,
       child: Column(
@@ -1312,14 +1373,50 @@ class _UnifiedInventoryPanelState extends ConsumerState<_UnifiedInventoryPanel> 
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    Text(
-                                      store.ownerName,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            '${store.ownerName} · ',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (store.profileId?.trim().isNotEmpty ==
+                                            true)
+                                          GestureDetector(
+                                            onTap: () => _copyProfileId(
+                                              store.profileId!.trim(),
+                                            ),
+                                            child: Text(
+                                              store.profileId!.trim(),
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          )
+                                        else
+                                          Text(
+                                            'No Profile ID',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textSecondary
+                                                  .withValues(alpha: 0.75),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
                                     ),
                                   ],
                                 ),

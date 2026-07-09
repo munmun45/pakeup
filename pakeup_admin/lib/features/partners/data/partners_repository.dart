@@ -10,6 +10,7 @@ class PartnerRecord {
   const PartnerRecord({
     required this.id,
     this.accountId,
+    this.profileId,
     required this.businessName,
     required this.ownerName,
     this.phone,
@@ -44,6 +45,7 @@ class PartnerRecord {
 
   final String id;
   final String? accountId;
+  final String? profileId;
   final String businessName;
   final String ownerName;
   final String? phone;
@@ -77,10 +79,51 @@ class PartnerRecord {
 
   String get displayCategory => categoryName ?? category;
 
+  PartnerRecord copyWith({
+    String? profileId,
+  }) {
+    return PartnerRecord(
+      id: id,
+      accountId: accountId,
+      profileId: profileId ?? this.profileId,
+      businessName: businessName,
+      ownerName: ownerName,
+      phone: phone,
+      email: email,
+      whatsapp: whatsapp,
+      alternatePhone: alternatePhone,
+      city: city,
+      state: state,
+      pincode: pincode,
+      category: category,
+      categoryName: categoryName,
+      addressLine: addressLine,
+      description: description,
+      gstNumber: gstNumber,
+      website: website,
+      googleMapEmbed: googleMapEmbed,
+      latitude: latitude,
+      longitude: longitude,
+      notes: notes,
+      isActive: isActive,
+      kycStatus: kycStatus,
+      loginId: loginId,
+      hasPassword: hasPassword,
+      storeCount: storeCount,
+      accountPhone: accountPhone,
+      accountWhatsapp: accountWhatsapp,
+      createdAt: createdAt,
+      images: images,
+      primaryImage: primaryImage,
+      schedules: schedules,
+    );
+  }
+
   factory PartnerRecord.fromJson(Map<String, dynamic> json) {
     return PartnerRecord(
       id: json['id'] as String,
       accountId: json['account_id'] as String?,
+      profileId: json['profile_id'] as String?,
       businessName: json['business_name'] as String,
       ownerName: json['owner_name'] as String,
       phone: json['phone'] as String?,
@@ -299,11 +342,38 @@ class PartnersRepository {
   }
 
   Future<List<PartnerRecord>> listPartners(String callerId) async {
-    final result = await _client.rpc<dynamic>(
-      'list_partners',
-      params: {'caller_id': callerId},
-    );
-    return _parseList(result, PartnerRecord.fromJson);
+    final results = await Future.wait<dynamic>([
+      _client.rpc<dynamic>(
+        'list_partners',
+        params: {'caller_id': callerId},
+      ),
+      _client.rpc<dynamic>(
+        'list_partner_accounts',
+        params: {'caller_id': callerId},
+      ),
+    ]);
+
+    final partners = _parseList(results[0], PartnerRecord.fromJson);
+    final accounts = _parseList(results[1], PartnerOwnerAccount.fromJson);
+
+    final profileByAccountId = <String, String>{
+      for (final account in accounts)
+        if (account.profileId?.trim().isNotEmpty == true)
+          account.id: account.profileId!.trim(),
+    };
+
+    return partners.map((partner) {
+      final existing = partner.profileId?.trim();
+      if (existing != null && existing.isNotEmpty) return partner;
+
+      final accountId = partner.accountId;
+      if (accountId == null) return partner;
+
+      final profileId = profileByAccountId[accountId];
+      if (profileId == null) return partner;
+
+      return partner.copyWith(profileId: profileId);
+    }).toList();
   }
 
   Future<List<PartnerOwnerAccount>> listPartnerAccounts(

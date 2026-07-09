@@ -4,6 +4,9 @@ class PartnerKycOverviewRecord {
     required this.businessName,
     required this.ownerName,
     this.phone,
+    this.profileId,
+    this.accountId,
+    this.storeCount = 1,
     this.primaryImage,
     this.images = const [],
     this.isActive = true,
@@ -23,6 +26,9 @@ class PartnerKycOverviewRecord {
   final String businessName;
   final String ownerName;
   final String? phone;
+  final String? profileId;
+  final String? accountId;
+  final int storeCount;
   final String? primaryImage;
   final List<String> images;
   final bool isActive;
@@ -81,12 +87,55 @@ class PartnerKycOverviewRecord {
     return v;
   }
 
+  PartnerKycOverviewRecord copyWith({
+    String? partnerId,
+    String? businessName,
+    String? profileId,
+    String? accountId,
+    int? storeCount,
+    String? kycStatus,
+    String? panNumber,
+    String? aadhaarNumber,
+    bool? hasAadhaarDoc,
+    bool? hasPanDoc,
+    bool? hasAgreementDoc,
+    bool? hasGstDoc,
+    bool? hasOtherDoc,
+    bool? hasPassbookDoc,
+  }) {
+    return PartnerKycOverviewRecord(
+      partnerId: partnerId ?? this.partnerId,
+      businessName: businessName ?? this.businessName,
+      ownerName: ownerName,
+      phone: phone,
+      profileId: profileId ?? this.profileId,
+      accountId: accountId ?? this.accountId,
+      storeCount: storeCount ?? this.storeCount,
+      primaryImage: primaryImage,
+      images: images,
+      isActive: isActive,
+      kycStatus: kycStatus ?? this.kycStatus,
+      createdAt: createdAt,
+      panNumber: panNumber ?? this.panNumber,
+      aadhaarNumber: aadhaarNumber ?? this.aadhaarNumber,
+      hasAadhaarDoc: hasAadhaarDoc ?? this.hasAadhaarDoc,
+      hasPanDoc: hasPanDoc ?? this.hasPanDoc,
+      hasAgreementDoc: hasAgreementDoc ?? this.hasAgreementDoc,
+      hasGstDoc: hasGstDoc ?? this.hasGstDoc,
+      hasOtherDoc: hasOtherDoc ?? this.hasOtherDoc,
+      hasPassbookDoc: hasPassbookDoc ?? this.hasPassbookDoc,
+    );
+  }
+
   factory PartnerKycOverviewRecord.fromJson(Map<String, dynamic> json) {
     return PartnerKycOverviewRecord(
       partnerId: json['partner_id'] as String? ?? '',
       businessName: json['business_name'] as String? ?? '',
       ownerName: json['owner_name'] as String? ?? '',
       phone: json['phone'] as String?,
+      profileId: json['profile_id'] as String?,
+      accountId: json['account_id'] as String?,
+      storeCount: json['store_count'] as int? ?? 1,
       primaryImage: json['primary_image'] as String?,
       images: (json['images'] as List<dynamic>?)
               ?.map((e) => e as String)

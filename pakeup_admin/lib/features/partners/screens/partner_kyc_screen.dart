@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -37,6 +38,8 @@ class PartnerKycScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kycAsync = ref.watch(partnerKycOverviewListProvider);
     final focus = ref.watch(partnerTableFocusProvider);
+    final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
+    final partners = ref.watch(partnersListProvider).valueOrNull ?? [];
     final searchQuery = ref.watch(headerSearchQueryProvider).trim().toLowerCase();
 
     return Column(
@@ -57,10 +60,19 @@ class PartnerKycScreen extends ConsumerWidget {
             ),
           ),
           data: (rows) {
-            final accountFilter = ref.watch(partnerAccountStoreFilterProvider);
-            final partners = ref.watch(partnersListProvider).valueOrNull ?? [];
             final visible = rows.where((r) {
-              if (focus != null && r.partnerId != focus.partnerId) return false;
+              if (focus != null && r.partnerId != focus.partnerId) {
+                final focusPartner = partners
+                    .where((p) => p.id == focus.partnerId)
+                    .firstOrNull;
+                final rowPartner =
+                    partners.where((p) => p.id == r.partnerId).firstOrNull;
+                final focusAccountId = focusPartner?.accountId;
+                if (focusAccountId == null ||
+                    rowPartner?.accountId != focusAccountId) {
+                  return false;
+                }
+              }
               if (accountFilter != null) {
                 final partner = partners.firstWhere(
                   (p) => p.id == r.partnerId,
@@ -72,6 +84,7 @@ class PartnerKycScreen extends ConsumerWidget {
                 final q = searchQuery;
                 final matches = r.businessName.toLowerCase().contains(q) ||
                     r.ownerName.toLowerCase().contains(q) ||
+                    (r.profileId?.toLowerCase().contains(q) ?? false) ||
                     (r.aadhaarNumber?.toLowerCase().contains(q) ?? false) ||
                     (r.panNumber?.toLowerCase().contains(q) ?? false);
                 if (!matches) return false;
@@ -366,7 +379,7 @@ class PartnerKycScreen extends ConsumerWidget {
   }
 }
 
-class _KycRow extends ConsumerWidget {
+class _KycRow extends StatelessWidget {
   const _KycRow({
     required this.row,
     required this.isLast,
@@ -383,8 +396,18 @@ class _KycRow extends ConsumerWidget {
 
   bool get _kycApproved => row.kycStatus == 'approved';
 
+  Future<void> _copyProfileId(BuildContext context, String profileId) async {
+    await Clipboard.setData(ClipboardData(text: profileId));
+    if (context.mounted) {
+      AppSnackBar.success(context, 'Profile ID copied');
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final profileId = row.profileId?.trim();
+    final hasProfileId = profileId != null && profileId.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
@@ -439,55 +462,86 @@ class _KycRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: InkWell(
-                    onTap: onView,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: onView,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Text(
                           row.businessName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.phone_outlined,
-                              size: 11,
-                              color: AppColors.textSecondary.withValues(alpha: 0.75),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(text: row.ownerName),
-                                    if (row.phone?.trim().isNotEmpty == true) ...[
-                                      const TextSpan(text: ' · '),
-                                      TextSpan(
-                                        text: row.phone!.trim(),
+                      ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.badge_outlined,
+                            size: 11,
+                            color: AppColors.textSecondary.withValues(alpha: 0.75),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                if (row.storeCount <= 1)
+                                  Flexible(
+                                    child: Text(
+                                      '${row.ownerName} · ',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary
+                                            .withValues(alpha: 0.95),
+                                      ),
+                                    ),
+                                  ),
+                                if (hasProfileId)
+                                  GestureDetector(
+                                    onTap: () => _copyProfileId(context, profileId),
+                                    child: MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: Text(
+                                        profileId,
                                         style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
                                           color: AppColors.primary,
-                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    ],
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    'No Profile ID',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.75),
+                                    ),
+                                  ),
+                                if (row.storeCount > 1) ...[
+                                  Text(
+                                    ' · ${row.storeCount} stores',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.9),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],

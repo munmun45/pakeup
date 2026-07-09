@@ -16,11 +16,19 @@ class PartnerAccountStoreFilter {
     required this.accountId,
     required this.ownerName,
     required this.storeCount,
+    this.profileId,
   });
 
   final String accountId;
   final String ownerName;
   final int storeCount;
+  final String? profileId;
+
+  String get headerLabel {
+    final id = profileId?.trim();
+    if (id != null && id.isNotEmpty) return '$ownerName · $id';
+    return ownerName;
+  }
 }
 
 final partnerTableFocusProvider =

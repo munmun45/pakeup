@@ -440,17 +440,6 @@ class _AccountRow extends ConsumerWidget {
                                 TextSpan(
                                   children: [
                                     TextSpan(text: 'ID: ${account.shortAccountId}'),
-                                    if (account.phone?.trim().isNotEmpty ==
-                                        true) ...[
-                                      const TextSpan(text: ' · '),
-                                      TextSpan(
-                                        text: account.phone!.trim(),
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
                                     if (account.storeCount > 0) ...[
                                       const TextSpan(text: ' · '),
                                       TextSpan(
